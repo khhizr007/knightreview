@@ -9,6 +9,7 @@ import type { Side } from "../api/generated/Side";
 import { uciSquares } from "../lib/fen";
 import { mySide, myUsernames, rememberChoice, rememberUsername } from "../lib/players";
 import { SAMPLE_PGN } from "../samples";
+import { LandingInfo } from "./LandingInfo";
 import { MiniBoard } from "./MiniBoard";
 import { OnlineImport } from "./OnlineImport";
 
@@ -214,11 +215,16 @@ export function ImportPanel({ onStart, busy }: Props) {
     <section className={`landing ${dragging ? "is-dragging" : ""}`} aria-labelledby="import-title" {...drop}>
       <div className="landing__hero">
         <div className="landing__copy">
-          <p className="landing__kicker">Game review</p>
           <h1 id="import-title" className="landing__title">
-            Review your games and learn from your mistakes, for free.
+            Free chess game review
           </h1>
-          <p className="landing__lede">Enter your Chess.com or Lichess username and pick a game. No account needed.</p>
+          <p className="landing__lede">
+            Review your games and learn from your mistakes. Enter your Chess.com or Lichess username, or paste a PGN. No
+            account, no daily limit.
+          </p>
+          <p className="landing__ext-link">
+            On Chess.com? <a href="#extension">Get the extension</a> and review any game from its Review button.
+          </p>
 
           {healthError && <div className="notice notice--error">Servers unavailable. Please try again in a moment.</div>}
           {health && !health.engine && (
@@ -352,6 +358,8 @@ export function ImportPanel({ onStart, busy }: Props) {
           </figcaption>
         </figure>
       </div>
+
+      <LandingInfo />
 
       {dragging && (
         <div className="dropzone" aria-hidden="true">
