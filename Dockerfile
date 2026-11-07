@@ -21,24 +21,31 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked -p review-server \
  && cp target/release/review-server /usr/local/bin/review-server
 
-# --- Stockfish (GPL-3.0, official release binary) -----------------------------
+# --- Stockfish (GPL-3.0) --------------------------------------------------------
 FROM debian:trixie-slim AS stockfish
-# x86-64-avx2 suits most cloud CPUs; use x86-64 for old CPUs. Arm hosts are not covered.
+# x86-64-avx2 suits most cloud CPUs; use x86-64 for old CPUs.
 ARG STOCKFISH_VERSION=sf_18
 ARG STOCKFISH_ARCH=x86-64-avx2
-# 64-bit Arm (Raspberry Pi 4/5 on a 64-bit OS, Oracle Ampere): sf_18 has no Linux Arm binary, so
-# use the sf_19 "universal" build, which picks the right CPU features at run time.
-ARG STOCKFISH_ARM64_VERSION=sf_19
+# 64-bit Arm (Apple Silicon under Docker, Raspberry Pi 4/5, Ampere): sf_18 ships no Linux Arm
+# binary, so build the same sf_18 source and net here. Keeping the engine version is what keeps the
+# move labels calibrated against chess.com. armv8-dotprod suits Apple M1+ and Pi 5; use armv8 on a
+# Pi 4 (no dot-product instructions).
+ARG STOCKFISH_ARM64_ARCH=armv8-dotprod
 ARG TARGETARCH
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
+ && if [ "${TARGETARCH:-amd64}" = "arm64" ]; then \
+      apt-get install -y --no-install-recommends g++ make; \
+    fi \
  && rm -rf /var/lib/apt/lists/*
 RUN set -eu; \
     if [ "${TARGETARCH:-amd64}" = "arm64" ]; then \
-      curl -fsSL -o /tmp/sf.tar.gz \
-        "https://github.com/official-stockfish/Stockfish/releases/download/${STOCKFISH_ARM64_VERSION}/stockfish-linux-arm64-universal.tar.gz"; \
-      tar -xzf /tmp/sf.tar.gz -C /tmp; \
-      install -m 0755 /tmp/stockfish/stockfish-linux-arm64-universal /usr/local/bin/stockfish; \
+      mkdir /tmp/sf-src; \
+      curl -fsSL "https://github.com/official-stockfish/Stockfish/archive/refs/tags/${STOCKFISH_VERSION}.tar.gz" \
+        | tar -xz -C /tmp/sf-src --strip-components=1; \
+      make -C /tmp/sf-src/src -j"$(nproc)" build ARCH="${STOCKFISH_ARM64_ARCH}" COMP=gcc; \
+      install -m 0755 /tmp/sf-src/src/stockfish /usr/local/bin/stockfish; \
+      rm -rf /tmp/sf-src; \
     else \
       curl -fsSL -o /tmp/sf.tar \
         "https://github.com/official-stockfish/Stockfish/releases/download/${STOCKFISH_VERSION}/stockfish-ubuntu-${STOCKFISH_ARCH}.tar"; \
