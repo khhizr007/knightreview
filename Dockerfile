@@ -21,19 +21,38 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked -p review-server \
  && cp target/release/review-server /usr/local/bin/review-server
 
-# --- Stockfish (GPL-3.0, official release binary) -----------------------------
+# --- Stockfish (GPL-3.0) --------------------------------------------------------
 FROM debian:trixie-slim AS stockfish
-# x86-64-avx2 suits most cloud CPUs; use x86-64 for old CPUs. Arm hosts are not covered.
+# x86-64-avx2 suits most cloud CPUs; use x86-64 for old CPUs.
 ARG STOCKFISH_VERSION=sf_18
 ARG STOCKFISH_ARCH=x86-64-avx2
+# 64-bit Arm (Apple Silicon under Docker, Raspberry Pi 4/5, Ampere): sf_18 ships no Linux Arm
+# binary, so build the same sf_18 source and net here. Keeping the engine version is what keeps the
+# move labels calibrated against chess.com. armv8-dotprod suits Apple M1+ and Pi 5; use armv8 on a
+# Pi 4 (no dot-product instructions).
+ARG STOCKFISH_ARM64_ARCH=armv8-dotprod
+ARG TARGETARCH
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
+ && if [ "${TARGETARCH:-amd64}" = "arm64" ]; then \
+      apt-get install -y --no-install-recommends g++ make; \
+    fi \
  && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL -o /tmp/sf.tar \
-      "https://github.com/official-stockfish/Stockfish/releases/download/${STOCKFISH_VERSION}/stockfish-ubuntu-${STOCKFISH_ARCH}.tar" \
- && tar -xf /tmp/sf.tar -C /tmp \
- && install -m 0755 "/tmp/stockfish/stockfish-ubuntu-${STOCKFISH_ARCH}" /usr/local/bin/stockfish \
- && rm -rf /tmp/sf.tar /tmp/stockfish
+RUN set -eu; \
+    if [ "${TARGETARCH:-amd64}" = "arm64" ]; then \
+      mkdir /tmp/sf-src; \
+      curl -fsSL "https://github.com/official-stockfish/Stockfish/archive/refs/tags/${STOCKFISH_VERSION}.tar.gz" \
+        | tar -xz -C /tmp/sf-src --strip-components=1; \
+      make -C /tmp/sf-src/src -j"$(nproc)" build ARCH="${STOCKFISH_ARM64_ARCH}" COMP=gcc; \
+      install -m 0755 /tmp/sf-src/src/stockfish /usr/local/bin/stockfish; \
+      rm -rf /tmp/sf-src; \
+    else \
+      curl -fsSL -o /tmp/sf.tar \
+        "https://github.com/official-stockfish/Stockfish/releases/download/${STOCKFISH_VERSION}/stockfish-ubuntu-${STOCKFISH_ARCH}.tar"; \
+      tar -xf /tmp/sf.tar -C /tmp; \
+      install -m 0755 "/tmp/stockfish/stockfish-ubuntu-${STOCKFISH_ARCH}" /usr/local/bin/stockfish; \
+    fi; \
+    rm -rf /tmp/sf.tar /tmp/sf.tar.gz /tmp/stockfish
 
 # --- Sound pack (optional, from a separate repository) --------------------------
 # Set SOUNDS_REPO=owner/name to pull a raw sound pack (default/*.mp3 and assets-ds/*.mp3, as in
