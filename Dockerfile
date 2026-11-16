@@ -111,6 +111,7 @@ COPY --from=backend /usr/local/bin/review-server /usr/local/bin/review-server
 COPY --from=frontend /app/frontend/dist /app/static
 COPY --from=sounds /sounds/ /app/static/sounds/
 COPY backend/data/openings /app/data/openings
+COPY backend/data/book /app/data/book
 # Finished reviews, one file each, deleted a day after they finish (REVIEW_TTL_SECS).
 RUN mkdir -p /app/data/reviews && chown app:app /app/data/reviews
 VOLUME /app/data/reviews
@@ -119,6 +120,7 @@ ENV BIND_ADDR=0.0.0.0:8080 \
     STOCKFISH_PATH=/usr/local/bin/stockfish \
     STATIC_DIR=/app/static \
     OPENINGS_DIR=/app/data/openings \
+    BOOK_FILE=/app/data/book/book.bin \
     REVIEW_STORE_DIR=/app/data/reviews \
     MAIA_COMMAND="/opt/maia/bin/python /app/maia/maia_sidecar.py --type rapid --models-dir /opt/maia-models --threads 2" \
     RUST_LOG=info,tower_http=warn
