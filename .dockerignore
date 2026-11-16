@@ -19,3 +19,7 @@ captures
 extension
 .env
 **/data/reviews
+# A private opening book is mounted at run time (BOOK_FILE), never built into the image.
+private
+compose.override.yaml
+*.bin

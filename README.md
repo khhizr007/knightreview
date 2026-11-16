@@ -258,6 +258,33 @@ own, add MP3 files with these names. Any file you leave out keeps the built-in s
 
 Only use sounds you have the right to use.
 
+## Custom opening book
+
+By default a move is Book when it follows a named line in the public-domain
+[lichess chess-openings](https://github.com/lichess-org/chess-openings) list (`backend/data/openings`).
+You can load a bigger book from a binary file with `BOOK_FILE=/path/to/book.bin`. When that file
+loads, a move is Book only when the positions before and after it are both book positions in it.
+Opening names still come from the lichess list. If the file is missing or broken, the server logs a
+warning and falls back to the lichess list.
+
+The file holds sorted 64-bit [Polyglot](http://hgm.nubati.net/book_format.html) position keys, each
+flagged as a book position or a named non-book one. The exact layout is documented on `KeyBook` in
+[`openings.rs`](backend/crates/review-server/src/openings.rs).
+
+With Docker Compose, mount it with a `compose.override.yaml` next to `compose.yaml` (Git ignores
+both the override and a `private/` folder):
+
+```yaml
+services:
+  chess-review:
+    volumes:
+      - ./private/book.bin:/app/data/book/book.bin:ro
+    environment:
+      BOOK_FILE: /app/data/book/book.bin
+```
+
+Only use a book you have the right to use.
+
 ## How it's built
 
 - **Backend:** Rust. Every move is analysed with [Stockfish](https://stockfishchess.org/), then

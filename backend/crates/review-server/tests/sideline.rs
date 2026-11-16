@@ -20,6 +20,14 @@ use shakmaty::{CastlingMode, Chess, Position};
 use tokio_util::sync::CancellationToken;
 
 async fn review(fixture: &str) -> ReviewResult {
+    review_with(fixture, common::openings(), ReviewConfig::default()).await
+}
+
+async fn review_with(
+    fixture: &str,
+    openings: Arc<review_server::openings::OpeningBook>,
+    config: ReviewConfig,
+) -> ReviewResult {
     let game = parse_pgn(&common::fixture(fixture))
         .unwrap()
         .remove(0)
@@ -30,11 +38,11 @@ async fn review(fixture: &str) -> ReviewResult {
             game,
             limit: SearchLimit::Depth { depth: 1 },
             multipv: 3,
-            config: ReviewConfig::default(),
+            config,
             player_side: None,
         },
         engine,
-        common::openings(),
+        openings,
         CancellationToken::new(),
         Arc::new(|_, _| {}),
     )
@@ -155,6 +163,55 @@ async fn a_game_move_asked_as_a_sideline_is_judged_as_the_review_judged_it() {
     }
     assert!(judged > 100, "only {judged} moves judged");
     assert!(spoken > 50, "only {spoken} coach notes compared");
+}
+
+#[tokio::test]
+async fn with_a_key_book_sidelines_are_book_as_in_the_review() {
+    let game = parse_pgn(&common::fixture("opera_game.pgn"))
+        .unwrap()
+        .remove(0)
+        .unwrap();
+    // Positions 0..=8 are in the key book; the one after 3...Bg4 (index 6) is notable.
+    let openings = common::openings_with_keys(&game.positions, 8, &[6]);
+    for strict in [false, true] {
+        let config = ReviewConfig {
+            book_requires_unbroken: strict,
+            ..ReviewConfig::default()
+        };
+        let r = review_with("opera_game.pgn", openings.clone(), config).await;
+        assert!(
+            r.plies[7].is_book != strict,
+            "4...Bxf3 transposes back into the book"
+        );
+        for (i, ply) in r.plies.iter().enumerate() {
+            let j = judge_sideline(&r, &openings, &as_sideline(&r, i).await).unwrap();
+            let at = format!("strict {strict} ply {} {}", ply.ply, ply.san);
+            assert_eq!(j.classification, ply.classification, "{at}");
+            assert_eq!(j.explanation, ply.explanation, "{at}");
+        }
+
+        // From 3...Bg4 (notable), the sideline 4.dxe5 Bxf3: the last move is between two book
+        // positions, so it is Book unless every move from the start must be Book.
+        let moves = ["d4e5".to_owned(), "g4f3".to_owned()];
+        let j = judge_sideline(
+            &r,
+            &openings,
+            &SidelineMove {
+                from_ply: 6,
+                moves: &moves,
+                before: lines(&r, &r.plies[7].fen_before).await,
+                after: lines(&r, &r.plies[8].fen_before).await.into_iter().next(),
+                previous_ep_lost: Some(r.plies[6].ep_lost),
+                threats: SidelineThreats::default(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            j.classification == Some(review_core::Classification::Book),
+            !strict,
+            "strict {strict}"
+        );
+    }
 }
 
 #[tokio::test]

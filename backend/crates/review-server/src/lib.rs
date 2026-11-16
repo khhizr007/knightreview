@@ -45,22 +45,43 @@ pub fn app(state: AppState, config: &AppConfig) -> Router {
     router.layer(TraceLayer::new_for_http())
 }
 
-/// Loads the opening book, logging (not failing) when it is unavailable.
+/// Loads the opening book, logging (not failing) when a part is unavailable.
 pub fn load_openings(config: &AppConfig) -> Arc<openings::OpeningBook> {
-    let Some(dir) = &config.openings_dir else {
-        tracing::warn!(
-            "OPENINGS_DIR not set and ./data/openings missing: Book classification disabled"
-        );
-        return Arc::new(openings::OpeningBook::empty());
-    };
-    match openings::OpeningBook::load_dir(dir) {
-        Ok((book, skipped)) => {
-            tracing::info!(positions = book.len(), skipped, dir = %dir.display(), "opening book loaded");
-            Arc::new(book)
+    let mut book = match &config.openings_dir {
+        None => {
+            tracing::warn!("OPENINGS_DIR not set and ./data/openings missing: no opening lines");
+            openings::OpeningBook::empty()
         }
-        Err(e) => {
-            tracing::warn!(error = %e, dir = %dir.display(), "could not load opening book");
-            Arc::new(openings::OpeningBook::empty())
+        Some(dir) => match openings::OpeningBook::load_dir(dir) {
+            Ok((book, skipped)) => {
+                tracing::info!(positions = book.len(), skipped, dir = %dir.display(), "opening lines loaded");
+                book
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, dir = %dir.display(), "could not load opening lines");
+                openings::OpeningBook::empty()
+            }
+        },
+    };
+    if let Some(path) = &config.book_file {
+        match openings::KeyBook::load(path) {
+            Ok(keys) => {
+                tracing::info!(
+                    positions = keys.len(),
+                    book_positions = keys.book_positions(),
+                    source = %keys.source_hex(),
+                    path = %path.display(),
+                    "key book loaded: it decides Book moves"
+                );
+                book = book.with_keys(keys);
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, path = %path.display(), "could not load BOOK_FILE; Book moves come from the opening lines");
+            }
         }
     }
+    if book.is_empty() {
+        tracing::warn!("no opening book: Book classification disabled");
+    }
+    Arc::new(book)
 }

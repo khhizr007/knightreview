@@ -13,7 +13,7 @@ use review_server::board;
 use review_server::engine::{
     AnalysisRequest, EngineError, EngineLine, Evaluator, PositionAnalysis,
 };
-use review_server::openings::OpeningBook;
+use review_server::openings::{KeyBook, OpeningBook};
 use review_server::store::ReviewStore;
 use shakmaty::fen::Fen;
 use shakmaty::{CastlingMode, Chess, Color, Position};
@@ -29,6 +29,49 @@ pub fn fixture(name: &str) -> String {
 pub fn openings() -> Arc<OpeningBook> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/openings");
     Arc::new(OpeningBook::load_dir(&dir).expect("opening data").0)
+}
+
+/// A key book (format on `KeyBook`) holding `positions`, each marked book (`true`) or notable.
+pub fn key_book(positions: &[(&Chess, bool)]) -> KeyBook {
+    let mut entries: Vec<(u64, bool)> = positions
+        .iter()
+        .map(|(p, book)| (board::polyglot_key(p), *book))
+        .collect();
+    entries.sort();
+    entries.dedup_by_key(|e| e.0);
+    let mut out = b"KRBK".to_vec();
+    out.extend(1u16.to_le_bytes());
+    out.extend(0u16.to_le_bytes());
+    out.extend((entries.len() as u32).to_le_bytes());
+    out.extend([0u8; 32]);
+    for (key, _) in &entries {
+        out.extend(key.to_le_bytes());
+    }
+    let mut bits = vec![0u8; entries.len().div_ceil(8)];
+    for (i, (_, book)) in entries.iter().enumerate() {
+        if *book {
+            bits[i / 8] |= 1 << (i % 8);
+        }
+    }
+    out.extend(bits);
+    KeyBook::from_bytes(&out).expect("valid key book")
+}
+
+/// The opening lines plus a key book holding the game's positions `0..=book_until` (0 = start):
+/// book positions, except the indexes in `notable`.
+pub fn openings_with_keys(
+    game: &[Chess],
+    book_until: usize,
+    notable: &[usize],
+) -> Arc<OpeningBook> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/openings");
+    let lines = OpeningBook::load_dir(&dir).expect("opening data").0;
+    let entries: Vec<(&Chess, bool)> = game[..=book_until]
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (p, !notable.contains(&i)))
+        .collect();
+    Arc::new(lines.with_keys(key_book(&entries)))
 }
 
 /// A fresh, empty directory for a test's review store.

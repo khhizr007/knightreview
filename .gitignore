@@ -24,3 +24,7 @@ frontend/public/sounds/
 
 # Finished reviews the server stores on disk (REVIEW_STORE_DIR default).
 data/reviews/
+
+# Optional private opening book and the local Compose override that mounts it (BOOK_FILE).
+/private/
+compose.override.yaml

@@ -3,6 +3,7 @@
 use review_core::{Phase, Side};
 use shakmaty::fen::{Epd, Fen};
 use shakmaty::uci::UciMove;
+use shakmaty::zobrist::Zobrist64;
 use shakmaty::{
     Board, CastlingMode, Chess, Color, EnPassantMode, Move, Position, Rank, Role, Square,
 };
@@ -46,6 +47,12 @@ pub fn fen(pos: &Chess) -> String {
 /// Position key without move counters (used for book lookup and repetition).
 pub fn epd(pos: &Chess) -> String {
     Epd::from_position(pos, EnPassantMode::Legal).to_string()
+}
+
+/// Polyglot key of the position (64-bit Zobrist hash, Polyglot book format; en passant
+/// counted only when a legal capture exists).
+pub fn polyglot_key(pos: &Chess) -> u64 {
+    pos.zobrist_hash::<Zobrist64>(EnPassantMode::Legal).0
 }
 
 pub fn uci(m: Move, mode: CastlingMode) -> String {
@@ -144,6 +151,30 @@ mod tests {
         assert_eq!(balance(pos.board(), Color::White), 0);
         assert_eq!(material(pos.board(), Color::White), 3900);
         assert_eq!(raw_phase(pos.board(), 0), Phase::Opening);
+    }
+
+    #[test]
+    fn polyglot_keys_match_the_published_values() {
+        // Reference keys from the Polyglot book format description.
+        let start = Chess::default();
+        assert_eq!(polyglot_key(&start), 0x463b_9618_1691_fc9c);
+        let mut pos = start;
+        for (san, key) in [
+            ("e4", 0x823c_9b50_fd11_4196),
+            ("d5", 0x0756_b944_61c5_0fb0),
+            ("e5", 0x662f_afb9_65db_29d4),
+            ("f5", 0x22a4_8b5a_8e47_ff78), // en passant square f6 is capturable
+            ("Ke2", 0x652a_607c_a3f2_42c1),
+            ("Kf7", 0x00fd_d303_c946_bdd9),
+        ] {
+            let m = san
+                .parse::<shakmaty::san::San>()
+                .unwrap()
+                .to_move(&pos)
+                .unwrap();
+            pos.play_unchecked(m);
+            assert_eq!(polyglot_key(&pos), key, "after {san}");
+        }
     }
 
     #[test]
