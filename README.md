@@ -235,8 +235,8 @@ Then open http://localhost:8080.
 
 ## Custom sounds
 
-KnightReview makes its own move and review sounds, so it works without any audio files. To use your
-own, add MP3 files with these names. Any file you leave out keeps the built-in sound.
+KnightReview ships with move and review sounds. To use your own, replace the MP3 files in
+`frontend/public/sounds/` (or mount them in Docker). Any file you leave out keeps the shipped sound.
 
 | File | When it plays |
 |---|---|
@@ -244,17 +244,6 @@ own, add MP3 files with these names. Any file you leave out keeps the built-in s
 | `brilliant.mp3` | A Brilliant move |
 | `correct.mp3`, `incorrect.mp3` | Retrying a missed move: found it, or not yet |
 | `result_good.mp3`, `result_ok.mp3`, `result_bad.mp3` | Retrying a missed move: how good your answer was |
-
-- **From source:** put the files in `frontend/public/sounds/` and reload the page. That folder is
-  ignored by Git, so your sounds stay local.
-- **With Docker:** keep the files in a folder and mount it into the container:
-
-  ```bash
-  docker run -d --name knightreview -p 127.0.0.1:8080:8080 \
-    -v "$PWD/my-sounds:/app/static/sounds:ro" knightreview
-  ```
-
-  With Docker Compose, add `- ./my-sounds:/app/static/sounds:ro` under `volumes:` in `compose.yaml`.
 
 Only use sounds you have the right to use.
 
