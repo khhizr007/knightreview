@@ -109,7 +109,6 @@ COPY tools/maia/maia_sidecar.py /app/maia/maia_sidecar.py
 COPY --from=stockfish /usr/local/bin/stockfish /usr/local/bin/stockfish
 COPY --from=backend /usr/local/bin/review-server /usr/local/bin/review-server
 COPY --from=frontend /app/frontend/dist /app/static
-COPY --from=sounds /sounds/ /app/static/sounds/
 COPY backend/data/openings /app/data/openings
 COPY backend/data/book /app/data/book
 # Finished reviews, one file each, deleted a day after they finish (REVIEW_TTL_SECS).
