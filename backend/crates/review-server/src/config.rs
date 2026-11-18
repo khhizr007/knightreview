@@ -107,7 +107,10 @@ impl AppConfig {
                 let local = PathBuf::from("data/openings");
                 local.is_dir().then_some(local)
             }),
-            book_file: optional_path("BOOK_FILE"),
+            book_file: optional_path("BOOK_FILE").or_else(|| {
+                let local = PathBuf::from("data/book/book.bin");
+                local.is_file().then_some(local)
+            }),
             static_dir: optional_path("STATIC_DIR"),
             cors_origin: std::env::var("CORS_ORIGIN").ok().filter(|v| !v.is_empty()),
             max_concurrent_reviews: parse_var("MAX_CONCURRENT_REVIEWS", 2usize)?.max(1),
