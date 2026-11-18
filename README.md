@@ -228,11 +228,8 @@ Then open http://localhost:8080.
 
 ## Custom sounds
 
-KnightReview ships with built-in move and review sounds so it works out of the box. The audio assets used in production live in a separate repository:
-
-→ [khhizr007/chess_sounds](https://github.com/khhizr007/chess_sounds)
-
-To use your own sounds, add MP3 files with these names. Any file you leave out keeps the built-in sound.
+KnightReview ships with move and review sounds. To use your own, replace the MP3 files in
+`frontend/public/sounds/` (or mount them in Docker). Any file you leave out keeps the shipped sound.
 
 | File | When it plays |
 |---|---|
@@ -241,17 +238,31 @@ To use your own sounds, add MP3 files with these names. Any file you leave out k
 | `correct.mp3`, `incorrect.mp3` | Retrying a missed move: found it, or not yet |
 | `result_good.mp3`, `result_ok.mp3`, `result_bad.mp3` | Retrying a missed move: how good your answer was |
 
-- **From source:** put the files in `frontend/public/sounds/` and reload the page. That folder is ignored by Git, so your sounds stay local.
-- **With Docker:** keep the files in a folder and mount it into the container:
-
-  ```bash
-  docker run -d --name knightreview -p 127.0.0.1:8080:8080 \
-    -v "$PWD/my-sounds:/app/static/sounds:ro" knightreview
-  ```
-
-  With Docker Compose, add `- ./my-sounds:/app/static/sounds:ro` under `volumes:` in `compose.yaml`.
-
 Only use sounds you have the right to use.
+
+## Custom opening book
+
+The app ships with a 51,752-position opening book that matches Chess.com's Book coverage.
+A move is Book when the positions before and after it are both in the book. Opening names
+still come from the public-domain [lichess chess-openings](https://github.com/lichess-org/chess-openings)
+list (`backend/data/openings`).
+
+To use a different book, set `BOOK_FILE=/path/to/book.bin`. The file holds sorted 64-bit
+[Polyglot](http://hgm.nubati.net/book_format.html) position keys, each flagged as a book
+position or a named non-book one. The exact layout is documented on `KeyBook` in
+[`openings.rs`](backend/crates/review-server/src/openings.rs). If the file is missing or broken,
+the server logs a warning and falls back to the lichess opening lines (~8,000 positions).
+
+With Docker Compose, mount a custom book with a `compose.override.yaml` next to `compose.yaml`:
+
+```yaml
+services:
+  chess-review:
+    volumes:
+      - ./private/book.bin:/app/data/book/book.bin:ro
+    environment:
+      BOOK_FILE: /app/data/book/book.bin
+```
 
 ## How it’s built
 

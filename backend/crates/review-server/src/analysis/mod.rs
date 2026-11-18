@@ -183,19 +183,20 @@ async fn human_odds(
     out
 }
 
-/// Per move: the position after it is a book position.
+/// Per move: it is a book move (`OpeningBook::is_book_move`).
 fn book_flags(game: &ParsedGame, openings: &OpeningBook, cfg: &ReviewConfig) -> Vec<bool> {
     let mut in_book = true;
-    game.positions[1..]
-        .iter()
-        .map(|after| {
-            in_book = in_book && openings.contains(after);
+    game.positions
+        .windows(2)
+        .map(|pair| {
+            let book = openings.is_book_move(&pair[0], &pair[1]);
+            in_book = in_book && book;
             // The reference also marks a later move Book when play transposes back
             // into the book; `book_requires_unbroken` keeps the stricter fallback.
             if cfg.book_requires_unbroken {
                 in_book
             } else {
-                openings.contains(after)
+                book
             }
         })
         .collect()
@@ -878,6 +879,8 @@ fn summarise(
     ];
     if openings.is_empty() {
         notes.push("No opening book is loaded, so no move is classified as Book.".to_owned());
+    } else if openings.key_book().is_some() {
+        notes.push("Book moves come from the configured opening book.".to_owned());
     } else {
         notes.push(
             "Book moves come from the public-domain Lichess opening list, not the reference book."

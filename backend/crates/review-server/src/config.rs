@@ -14,6 +14,9 @@ pub struct AppConfig {
     pub engine: EngineOptions,
     /// Directory with `*.tsv` opening files (eco, name, pgn).
     pub openings_dir: Option<PathBuf>,
+    /// Binary key book (`BOOK_FILE`). When it loads, it decides Book moves; the TSV lines
+    /// still give opening names.
+    pub book_file: Option<PathBuf>,
     /// Built frontend to serve (optional; in development Vite serves it).
     pub static_dir: Option<PathBuf>,
     /// Allowed browser origin for CORS (development).
@@ -103,6 +106,10 @@ impl AppConfig {
             openings_dir: optional_path("OPENINGS_DIR").or_else(|| {
                 let local = PathBuf::from("data/openings");
                 local.is_dir().then_some(local)
+            }),
+            book_file: optional_path("BOOK_FILE").or_else(|| {
+                let local = PathBuf::from("data/book/book.bin");
+                local.is_file().then_some(local)
             }),
             static_dir: optional_path("STATIC_DIR"),
             cors_origin: std::env::var("CORS_ORIGIN").ok().filter(|v| !v.is_empty()),

@@ -190,11 +190,11 @@ pub fn judge_sideline(
         return Err(JudgeError::MissingAfter);
     };
 
-    let in_book = |k: usize| openings.contains(&positions[k]);
+    let book_move = |k: usize| openings.is_book_move(&positions[k], &positions[k + 1]);
     let is_book = if cfg.book_requires_unbroken {
-        (from == 0 || review.plies[from - 1].is_book) && (from + 1..=i + 1).all(in_book)
+        (from == 0 || review.plies[from - 1].is_book) && (from..=i).all(book_move)
     } else {
-        in_book(i + 1)
+        book_move(i)
     };
     let opponent_previous_ep_lost = request
         .previous_ep_lost

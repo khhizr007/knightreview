@@ -93,6 +93,59 @@ async fn scholars_mate_review() {
 }
 
 #[tokio::test]
+async fn a_key_book_decides_book_moves_by_the_positions_before_and_after() {
+    // Positions 0..=8 (start to 4...Bxf3) are in the key book; 3...Bg4's position is notable.
+    let positions = request("opera_game.pgn").game.positions;
+    let openings = common::openings_with_keys(&positions, 8, &[6]);
+    let run = |config: ReviewConfig| {
+        let mut req = request("opera_game.pgn");
+        req.config = config;
+        let engine: Arc<dyn Evaluator> = Arc::new(FakeEngine::default());
+        run_review(
+            req,
+            engine,
+            openings.clone(),
+            CancellationToken::new(),
+            Arc::new(|_, _| {}),
+        )
+    };
+    let r = run(ReviewConfig::default()).await.unwrap();
+    let book: Vec<bool> = r.plies.iter().map(|p| p.is_book).collect();
+    let mut expected = vec![true, true, true, true, true, false, false, true];
+    expected.resize(r.plies.len(), false);
+    assert_eq!(
+        book, expected,
+        "into and out of the notable position are not Book"
+    );
+    for p in &r.plies {
+        assert_eq!(
+            p.classification == Some(Classification::Book),
+            p.is_book,
+            "ply {} {}",
+            p.ply,
+            p.san
+        );
+    }
+    assert!(
+        r.notes
+            .iter()
+            .any(|n| n == "Book moves come from the configured opening book.")
+    );
+
+    // The strict option stops at the first move that is not Book.
+    let strict = run(ReviewConfig {
+        book_requires_unbroken: true,
+        ..ReviewConfig::default()
+    })
+    .await
+    .unwrap();
+    let book: Vec<bool> = strict.plies.iter().map(|p| p.is_book).collect();
+    let mut expected = vec![true; 5];
+    expected.resize(strict.plies.len(), false);
+    assert_eq!(book, expected);
+}
+
+#[tokio::test]
 async fn missed_mate_in_one_is_a_miss() {
     let r = review("missed_mate.pgn").await;
     let qf3 = &r.plies[6];
