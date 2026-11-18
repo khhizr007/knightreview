@@ -324,6 +324,25 @@ pub fn missed_on_best_line(
     }
 }
 
+/// Whether the opponent's best reply R from `after` wins material at once
+/// (PERMITS>WINS_MATERIAL) or later in its line (PERMITS>LEADS_TO).
+pub fn permits_material(after: &Chess, reply: LineInput<'_>, played: Move, horizon: u32) -> bool {
+    let line = Line::parse(
+        after,
+        reply.pv,
+        mate_for(reply.eval, after.turn()),
+        horizon,
+        Some(played),
+    );
+    !line.moves.is_empty()
+        && circ::permits(&line, played).is_some_and(|e| {
+            matches!(
+                e.chain.as_slice(),
+                [Circ::Permits, Circ::WinsMaterial | Circ::LeadsTo]
+            )
+        })
+}
+
 /// Coaches one move. A forced move is said to be the only legal move; a book
 /// move gets a note when it develops, castles or takes the centre; other
 /// moves the coach does not explain get an empty note.
@@ -700,5 +719,31 @@ mod tests {
             Phase::Endgame,
         );
         assert_eq!(missed, MissedOnBestLine::default());
+    }
+
+    #[test]
+    fn a_reply_that_takes_the_hanging_queen_permits_material() {
+        // Black's quiet king move leaves the queen to Rxd4.
+        let before = pos("8/4k3/8/8/3q4/8/8/3RK3 b - - 0 1");
+        let played = board::parse_uci(&before, "e7e8").unwrap();
+        let mut after = before.clone();
+        after.play_unchecked(played);
+        let line = pv(&["d1d4", "e8e7", "e1e2"]);
+        let eval = Eval::Cp { cp: 900 };
+        assert!(permits_material(
+            &after,
+            LineInput { pv: &line, eval },
+            played,
+            6
+        ));
+        // A quiet reply wins nothing.
+        let line = pv(&["e1e2", "e8e7"]);
+        let eval = Eval::Cp { cp: 0 };
+        assert!(!permits_material(
+            &after,
+            LineInput { pv: &line, eval },
+            played,
+            6
+        ));
     }
 }

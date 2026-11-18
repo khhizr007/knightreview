@@ -186,7 +186,8 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
     let material_lost = played_walk.lost();
     let best_gain = best_walk.net();
     // The ends of both lines, for the one-pawn tension rule.
-    let tension = cfg.miss.decoded_pawn_tension || cfg.compare_material_lost;
+    let tension =
+        cfg.miss.decoded_pawn_tension || cfg.compare_material_lost || cfg.decoded_blunder_softening;
     let (played_end, best_end) = if tension {
         (
             Some(line_end(before, &played_pv, played_walk.plies)),
@@ -208,16 +209,22 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
     } else {
         (material_lost, best_gain.max(0))
     };
+    // The played line loses strictly more than the best move's line (one pawn left in
+    // tension counting as nothing).
+    let loses_more_than_best_line = !played_is_best
+        && adjusted(material_lost, &played_end, mover_color.other())
+            > adjusted(best_walk.lost(), &best_end, mover_color.other());
     // "Loses more material than the best move".
     let loses_more_material_than_best = if cfg.compare_material_lost {
-        !played_is_best
-            && adjusted(material_lost, &played_end, mover_color.other())
-                > adjusted(best_walk.lost(), &best_end, mover_color.other())
+        loses_more_than_best_line
     } else {
         // A margin keeps PV noise in lost positions (where every line sheds
         // material) from flipping this fact.
         played_walk.end <= best_walk.end - cfg.forgiving_material_lost_cp
     };
+    // Getting mated counts unless the best move is mated too (recovered).
+    let mated = played_value.mate_moves().is_some_and(|n| n < 0)
+        && !best_value.mate_moves().is_some_and(|n| n < 0);
 
     let mut facts = MoveFacts {
         played: played_value,
@@ -232,10 +239,7 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
         has_siblings: lines.len() > 1,
         events: MoveEvents::default(),
         material: MaterialFacts {
-            // Getting mated counts unless the best move is mated too (recovered).
-            loses_material_or_mated: material_lost >= cfg.blunder_material_threshold_cp
-                || (played_value.mate_moves().is_some_and(|n| n < 0)
-                    && !best_value.mate_moves().is_some_and(|n| n < 0)),
+            loses_material_or_mated: material_lost >= cfg.blunder_material_threshold_cp || mated,
             loses_more_material_than_best,
             // In forced-mate lines material is meaningless; the mate rules decide.
             material_lost_cp: (!played_value.is_mate()).then_some(material_lost),
@@ -245,6 +249,16 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
         missed: MissedChances::default(),
     };
     let grade = classification::precision(&facts, cfg);
+    // Recovered "loses material or gets mated" (read only to soften a Blunder): the move loses
+    // more material than the best move, or the opponent's best reply wins material at once or
+    // later in its line, or the move gets mated while the best move does not.
+    if cfg.decoded_blunder_softening {
+        let permits = grade == Some(Precision::Blunder)
+            && input
+                .after_line
+                .is_some_and(|r| coach::permits_material(after, line_input(r), m, horizon));
+        facts.material.loses_material_or_mated = loses_more_than_best_line || permits || mated;
+    }
     let good_grade = matches!(grade, Some(Precision::Best | Precision::Excellent));
     let endgame_gain_ok = |walk: &LineMaterial, min: i32| {
         input.phase_after != Phase::Endgame || walk.max - walk.start >= min

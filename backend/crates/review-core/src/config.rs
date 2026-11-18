@@ -25,6 +25,13 @@ pub struct ReviewConfig {
     /// Material (cp) a Blunder must actually lose to stay a Blunder (fallback for
     /// `is_losing_material_or_getting_mated`).
     pub blunder_material_threshold_cp: i32,
+    /// The Blunder softening reads the recovered "loses material or gets mated": the move loses
+    /// strictly more material than the best move (one pawn left in tension counting as
+    /// nothing), or the opponent's best reply wins material at once or later in its line
+    /// (PERMITS>WINS_MATERIAL, PERMITS>LEADS_TO), or it gets mated while the best move does not.
+    /// Off by default: on our engine lines it changes about 20 of 42,000 labels, about as many
+    /// wrongly as rightly (calibration). Off: the fallback threshold above, or getting mated.
+    pub decoded_blunder_softening: bool,
     /// Material lost (cp) that turns Excellent/Good/Inaccuracy into Mistake when
     /// losing. Recovered: 200.
     pub forgiving_material_lost_cp: i32,
@@ -222,6 +229,7 @@ impl Default for ReviewConfig {
             rating_max: 3000,
             rating_offset: 200,
             blunder_material_threshold_cp: 100,
+            decoded_blunder_softening: false,
             forgiving_material_lost_cp: 200,
             compare_material_lost: true,
             allow_tricky: false,
