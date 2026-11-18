@@ -35,6 +35,13 @@ blunder_material_threshold_cp: number,
  */
 forgiving_material_lost_cp: number, 
 /**
+ * "Loses more material than the best move" compares what the two lines lose: the played
+ * line loses strictly more than the best move's line, a lone pawn left in tension counting
+ * as nothing (recovered). Off: the played line must end `forgiving_material_lost_cp` below
+ * the best line.
+ */
+compare_material_lost: boolean, 
+/**
  * Enables the Tricky class. The reference client discards it; default off.
  */
 allow_tricky: boolean, brilliant: BrilliantConfig, great_find: GreatFindConfig, miss: MissConfig, 

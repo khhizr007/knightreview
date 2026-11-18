@@ -105,6 +105,38 @@ pub fn walk_line(start: &Chess, mover: Color, pv: &[String], horizon: u32) -> Li
     walk
 }
 
+/// The position after the first `plies` moves of `pv` from `start` (the end of a walked line).
+pub fn line_end(start: &Chess, pv: &[String], plies: u32) -> Chess {
+    let mut pos = start.clone();
+    for text in pv.iter().take(plies as usize) {
+        let Some(m) = board::parse_uci(&pos, text) else {
+            break;
+        };
+        pos.play_unchecked(m);
+    }
+    pos
+}
+
+/// At the end of a line a pawn of `color` can be won by exchange (SEE) and an enemy pawn attacks
+/// it, so a pawn `color` just won is not settled.
+pub fn leaves_pawn_tension(end: &Chess, color: Color) -> bool {
+    let b = end.board();
+    let enemy_pawns = b.pawns() & b.by_color(color.other());
+    (b.pawns() & b.by_color(color)).into_iter().any(|sq| {
+        (shakmaty::attacks::pawn_attacks(color, sq) & enemy_pawns).any()
+            && see::see(b, sq, color.other()) > 0
+    })
+}
+
+/// A gain of exactly one pawn that leaves pawn tension for the gainer counts as no gain.
+pub fn pawn_tension_adjusted(gain: i32, end: &Chess, gainer: Color) -> i32 {
+    if gain == 100 && leaves_pawn_tension(end, gainer) {
+        0
+    } else {
+        gain
+    }
+}
+
 /// How a move gives a piece up (the reference's base tags).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SacrificeKind {
@@ -1475,5 +1507,29 @@ mod tests {
         let walk = walk_line(&p, Color::White, &line(&["d1d4", "e5d4"]), 6);
         assert_eq!(walk.net(), 400);
         assert!(!takes_free_piece(&walk, 300));
+    }
+
+    #[test]
+    fn pawn_tension_cancels_a_one_pawn_gain() {
+        // White's d5 pawn stands en prise to the e6 pawn: a pawn White just won is not settled.
+        let p = pos("4k3/8/4p3/3P4/8/8/8/4K3 w - - 0 1");
+        assert!(leaves_pawn_tension(&p, Color::White));
+        assert_eq!(pawn_tension_adjusted(100, &p, Color::White), 0);
+        // More than a pawn is kept whatever the tension.
+        assert_eq!(pawn_tension_adjusted(300, &p, Color::White), 300);
+        // c4 defends d5: exd5 cxd5 wins nothing, so there is no tension.
+        let p = pos("4k3/8/4p3/3P4/2P5/8/8/4K3 w - - 0 1");
+        assert!(!leaves_pawn_tension(&p, Color::White));
+        assert_eq!(pawn_tension_adjusted(100, &p, Color::White), 100);
+        // line_end plays the given plies only.
+        let start = pos("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");
+        let end = line_end(&start, &line(&["e2e4", "e8d7", "e4e5"]), 2);
+        assert_eq!(
+            end.board().piece_at(shakmaty::Square::E4),
+            Some(shakmaty::Piece {
+                color: Color::White,
+                role: Role::Pawn
+            })
+        );
     }
 }
