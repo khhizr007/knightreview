@@ -8,7 +8,6 @@ backend/target
 *.log
 
 # Local-only material that must never ship (see .gitignore and THIRD_PARTY.md).
-frontend/public/sounds
 tests/calibration
 tools/*
 !tools/maia
@@ -19,7 +18,9 @@ captures
 extension
 .env
 **/data/reviews
-# A private opening book is mounted at run time (BOOK_FILE), never built into the image.
+# Local-only book copies and other binaries stay out.
 private
 compose.override.yaml
 *.bin
+# The shipped opening book is built into the image.
+!backend/data/book/book.bin

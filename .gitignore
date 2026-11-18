@@ -13,8 +13,6 @@ tag_names.txt
 /tests/calibration/
 /tools/calibrate/
 
-# A local sound pack override (the shipped sounds are in the repo).
-frontend/public/sounds/*.mp3
 
 # Local Docker settings (may hold a token).
 .env
