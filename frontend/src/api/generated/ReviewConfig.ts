@@ -30,10 +30,26 @@ rating_offset: number,
  */
 blunder_material_threshold_cp: number, 
 /**
+ * The Blunder softening reads the recovered "loses material or gets mated": the move loses
+ * strictly more material than the best move (one pawn left in tension counting as
+ * nothing), or the opponent's best reply wins material at once or later in its line
+ * (PERMITS>WINS_MATERIAL, PERMITS>LEADS_TO), or it gets mated while the best move does not.
+ * Off by default: on our engine lines it changes about 20 of 42,000 labels, about as many
+ * wrongly as rightly (calibration). Off: the fallback threshold above, or getting mated.
+ */
+decoded_blunder_softening: boolean, 
+/**
  * Material lost (cp) that turns Excellent/Good/Inaccuracy into Mistake when
  * losing. Recovered: 200.
  */
 forgiving_material_lost_cp: number, 
+/**
+ * "Loses more material than the best move" compares what the two lines lose: the played
+ * line loses strictly more than the best move's line, a lone pawn left in tension counting
+ * as nothing (recovered). Off: the played line must end `forgiving_material_lost_cp` below
+ * the best line.
+ */
+compare_material_lost: boolean, 
 /**
  * Enables the Tricky class. The reference client discards it; default off.
  */

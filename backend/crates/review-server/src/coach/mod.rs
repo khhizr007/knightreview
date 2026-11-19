@@ -280,6 +280,69 @@ fn allowed(input: &CoachInput<'_>, tag: Tag) -> bool {
     input.rating.is_none_or(|r| realise::min_rating(tag) <= r)
 }
 
+/// What the best line B achieves, as the Miss checks read its MISSES events.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MissedOnBestLine {
+    /// B takes a free piece (FREE_PIECE under MISSES, at any depth of the chain).
+    pub free_piece: bool,
+    /// B wins material with a tactic of its first move (MISSES>WINS_MATERIAL), or takes the piece
+    /// the opponent just left hanging (MISSES_SAME).
+    pub wins_material: bool,
+}
+
+/// The MISSES events of the best line B from `before`, with no rating gate (the classification
+/// reads board events, not what the coach may say at a rating). Threat lines are not needed: they
+/// only add THREATENS and PREVENTS events under MISSES.
+pub fn missed_on_best_line(
+    before: &Chess,
+    best: LineInput<'_>,
+    previous: Option<Move>,
+    horizon: u32,
+    phase: Phase,
+) -> MissedOnBestLine {
+    let line = Line::parse(
+        before,
+        best.pv,
+        mate_for(best.eval, before.turn()),
+        horizon,
+        previous,
+    );
+    if line.moves.is_empty() {
+        return MissedOnBestLine::default();
+    }
+    let events = circ::best_events(before, &line, previous, None, None, horizon, phase);
+    MissedOnBestLine {
+        free_piece: events.iter().any(|e| {
+            e.tag() == Tag::FreePiece && matches!(e.first(), Circ::Misses | Circ::MissesSame)
+        }),
+        wins_material: events.iter().any(|e| {
+            matches!(
+                e.chain.as_slice(),
+                [Circ::Misses | Circ::MissesSame, Circ::WinsMaterial] | [Circ::MissesSame]
+            )
+        }),
+    }
+}
+
+/// Whether the opponent's best reply R from `after` wins material at once
+/// (PERMITS>WINS_MATERIAL) or later in its line (PERMITS>LEADS_TO).
+pub fn permits_material(after: &Chess, reply: LineInput<'_>, played: Move, horizon: u32) -> bool {
+    let line = Line::parse(
+        after,
+        reply.pv,
+        mate_for(reply.eval, after.turn()),
+        horizon,
+        Some(played),
+    );
+    !line.moves.is_empty()
+        && circ::permits(&line, played).is_some_and(|e| {
+            matches!(
+                e.chain.as_slice(),
+                [Circ::Permits, Circ::WinsMaterial | Circ::LeadsTo]
+            )
+        })
+}
+
 /// Coaches one move. A forced move is said to be the only legal move; a book
 /// move gets a note when it develops, castles or takes the centre; other
 /// moves the coach does not explain get an empty note.
@@ -608,5 +671,79 @@ impl CoachNote {
             .first()
             .and_then(|s| s.event)
             .and_then(|i| self.events.get(i as usize))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shakmaty::CastlingMode;
+    use shakmaty::fen::Fen;
+
+    fn pos(fen: &str) -> Chess {
+        fen.parse::<Fen>()
+            .unwrap()
+            .into_position(CastlingMode::Standard)
+            .unwrap()
+    }
+
+    fn pv(moves: &[&str]) -> Vec<String> {
+        moves.iter().map(|m| m.to_string()).collect()
+    }
+
+    #[test]
+    fn best_line_taking_a_hanging_queen_is_a_missed_free_piece() {
+        // Rxd4 takes the undefended queen.
+        let before = pos("4k3/8/8/8/3q4/8/8/3RK3 w - - 0 1");
+        let line = pv(&["d1d4", "e8e7", "e1e2"]);
+        let eval = Eval::Cp { cp: 900 };
+        let missed = missed_on_best_line(
+            &before,
+            LineInput { pv: &line, eval },
+            None,
+            6,
+            Phase::Endgame,
+        );
+        assert!(missed.free_piece);
+        assert!(missed.wins_material);
+        // A quiet best line wins nothing.
+        let line = pv(&["e1e2", "e8e7"]);
+        let missed = missed_on_best_line(
+            &before,
+            LineInput {
+                pv: &line,
+                eval: Eval::Cp { cp: 0 },
+            },
+            None,
+            6,
+            Phase::Endgame,
+        );
+        assert_eq!(missed, MissedOnBestLine::default());
+    }
+
+    #[test]
+    fn a_reply_that_takes_the_hanging_queen_permits_material() {
+        // Black's quiet king move leaves the queen to Rxd4.
+        let before = pos("8/4k3/8/8/3q4/8/8/3RK3 b - - 0 1");
+        let played = board::parse_uci(&before, "e7e8").unwrap();
+        let mut after = before.clone();
+        after.play_unchecked(played);
+        let line = pv(&["d1d4", "e8e7", "e1e2"]);
+        let eval = Eval::Cp { cp: 900 };
+        assert!(permits_material(
+            &after,
+            LineInput { pv: &line, eval },
+            played,
+            6
+        ));
+        // A quiet reply wins nothing.
+        let line = pv(&["e1e2", "e8e7"]);
+        let eval = Eval::Cp { cp: 0 };
+        assert!(!permits_material(
+            &after,
+            LineInput { pv: &line, eval },
+            played,
+            6
+        ));
     }
 }

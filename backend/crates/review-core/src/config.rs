@@ -25,9 +25,21 @@ pub struct ReviewConfig {
     /// Material (cp) a Blunder must actually lose to stay a Blunder (fallback for
     /// `is_losing_material_or_getting_mated`).
     pub blunder_material_threshold_cp: i32,
+    /// The Blunder softening reads the recovered "loses material or gets mated": the move loses
+    /// strictly more material than the best move (one pawn left in tension counting as
+    /// nothing), or the opponent's best reply wins material at once or later in its line
+    /// (PERMITS>WINS_MATERIAL, PERMITS>LEADS_TO), or it gets mated while the best move does not.
+    /// Off by default: on our engine lines it changes about 20 of 42,000 labels, about as many
+    /// wrongly as rightly (calibration). Off: the fallback threshold above, or getting mated.
+    pub decoded_blunder_softening: bool,
     /// Material lost (cp) that turns Excellent/Good/Inaccuracy into Mistake when
     /// losing. Recovered: 200.
     pub forgiving_material_lost_cp: i32,
+    /// "Loses more material than the best move" compares what the two lines lose: the played
+    /// line loses strictly more than the best move's line, a lone pawn left in tension counting
+    /// as nothing (recovered). Off: the played line must end `forgiving_material_lost_cp` below
+    /// the best line.
+    pub compare_material_lost: bool,
     /// Enables the Tricky class. The reference client discards it; default off.
     pub allow_tricky: bool,
     pub brilliant: BrilliantConfig,
@@ -171,6 +183,22 @@ pub struct MissConfig {
     pub tactic_min_opponent_ep_lost: f64,
     /// "Missed brilliant": the best move is a sacrifice and its EP is at least this.
     pub brilliant_min_best_ep: f64,
+    /// "Missed tactic" read from the coach's events on the best line: the best move wins
+    /// material with a tactic of its own (MISSES>WINS_MATERIAL), or takes the piece the opponent
+    /// just left hanging (MISSES_SAME), with no gate on the opponent's previous move. Off: the
+    /// best line gains `tactic_min_gain_cp` after `tactic_min_opponent_ep_lost`.
+    pub decoded_tactic: bool,
+    /// "Missed free piece" read from the coach's events on the best line (FREE_PIECE under
+    /// MISSES), with no gate on the opponent's previous move. Off: the best line's first capture
+    /// of `free_piece_min_value_cp`, after `tactic_min_opponent_ep_lost`.
+    pub decoded_free_piece: bool,
+    /// "Missed opportunity": the opponent's previous move was a Mistake or worse and the best
+    /// move keeps the mover at Equal or better. Off: the opponent's previous move lost
+    /// `opportunity_min_opponent_ep_lost`.
+    pub decoded_opportunity: bool,
+    /// Guard "drops material": a loss or gain of exactly one pawn that leaves the gainer's pawn
+    /// en prise to an enemy pawn (pawn tension) counts as nothing.
+    pub decoded_pawn_tension: bool,
 }
 
 /// Engine work done for the move coach only (it never changes a classification).
@@ -201,7 +229,9 @@ impl Default for ReviewConfig {
             rating_max: 3000,
             rating_offset: 200,
             blunder_material_threshold_cp: 100,
+            decoded_blunder_softening: false,
             forgiving_material_lost_cp: 200,
+            compare_material_lost: true,
             allow_tricky: false,
             brilliant: BrilliantConfig::default(),
             great_find: GreatFindConfig::default(),
@@ -281,6 +311,10 @@ impl Default for MissConfig {
             opportunity_min_opponent_ep_lost: 0.10,
             tactic_min_opponent_ep_lost: 0.05,
             brilliant_min_best_ep: 0.20,
+            decoded_tactic: true,
+            decoded_free_piece: true,
+            decoded_opportunity: true,
+            decoded_pawn_tension: true,
         }
     }
 }

@@ -24,4 +24,28 @@ tactic_min_opponent_ep_lost: number,
 /**
  * "Missed brilliant": the best move is a sacrifice and its EP is at least this.
  */
-brilliant_min_best_ep: number, };
+brilliant_min_best_ep: number, 
+/**
+ * "Missed tactic" read from the coach's events on the best line: the best move wins
+ * material with a tactic of its own (MISSES>WINS_MATERIAL), or takes the piece the opponent
+ * just left hanging (MISSES_SAME), with no gate on the opponent's previous move. Off: the
+ * best line gains `tactic_min_gain_cp` after `tactic_min_opponent_ep_lost`.
+ */
+decoded_tactic: boolean, 
+/**
+ * "Missed free piece" read from the coach's events on the best line (FREE_PIECE under
+ * MISSES), with no gate on the opponent's previous move. Off: the best line's first capture
+ * of `free_piece_min_value_cp`, after `tactic_min_opponent_ep_lost`.
+ */
+decoded_free_piece: boolean, 
+/**
+ * "Missed opportunity": the opponent's previous move was a Mistake or worse and the best
+ * move keeps the mover at Equal or better. Off: the opponent's previous move lost
+ * `opportunity_min_opponent_ep_lost`.
+ */
+decoded_opportunity: boolean, 
+/**
+ * Guard "drops material": a loss or gain of exactly one pawn that leaves the gainer's pawn
+ * en prise to an enemy pawn (pawn tension) counts as nothing.
+ */
+decoded_pawn_tension: boolean, };

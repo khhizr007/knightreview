@@ -12,8 +12,9 @@ use shakmaty::{Chess, Move, Position, Role, Square};
 use super::detectors::{
     EarlierOwnMove, LineMaterial, Sacrifice, SacrificeKind, captures_free_piece,
     captures_promotion_threat, is_only_safe_square, is_passed_pawn_push, is_recapture,
-    is_safe_promotion, lands_safely, material_gate, reference_ignored_threat, removes_attacker,
-    sacrifice, takes_free_piece, threatens_promotion, walk_line,
+    is_safe_promotion, lands_safely, line_end, material_gate, pawn_tension_adjusted,
+    reference_ignored_threat, removes_attacker, sacrifice, takes_free_piece, threatens_promotion,
+    walk_line,
 };
 use super::see;
 use super::{eval_after_first_move, line_input};
@@ -184,6 +185,46 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
     let best_walk = walk_line(before, mover_color, &best_line.pv, horizon);
     let material_lost = played_walk.lost();
     let best_gain = best_walk.net();
+    // The ends of both lines, for the one-pawn tension rule.
+    let tension =
+        cfg.miss.decoded_pawn_tension || cfg.compare_material_lost || cfg.decoded_blunder_softening;
+    let (played_end, best_end) = if tension {
+        (
+            Some(line_end(before, &played_pv, played_walk.plies)),
+            Some(line_end(before, &best_line.pv, best_walk.plies)),
+        )
+    } else {
+        (None, None)
+    };
+    let adjusted = |cp: i32, end: &Option<Chess>, gainer| match end {
+        Some(end) => pawn_tension_adjusted(cp, end, gainer),
+        None => cp,
+    };
+    // Guard A's loss and the best line's gain.
+    let (guard_lost, guard_gain) = if cfg.miss.decoded_pawn_tension {
+        (
+            adjusted(material_lost, &played_end, mover_color.other()),
+            adjusted(best_gain.max(0), &best_end, mover_color),
+        )
+    } else {
+        (material_lost, best_gain.max(0))
+    };
+    // The played line loses strictly more than the best move's line (one pawn left in
+    // tension counting as nothing).
+    let loses_more_than_best_line = !played_is_best
+        && adjusted(material_lost, &played_end, mover_color.other())
+            > adjusted(best_walk.lost(), &best_end, mover_color.other());
+    // "Loses more material than the best move".
+    let loses_more_material_than_best = if cfg.compare_material_lost {
+        loses_more_than_best_line
+    } else {
+        // A margin keeps PV noise in lost positions (where every line sheds
+        // material) from flipping this fact.
+        played_walk.end <= best_walk.end - cfg.forgiving_material_lost_cp
+    };
+    // Getting mated counts unless the best move is mated too (recovered).
+    let mated = played_value.mate_moves().is_some_and(|n| n < 0)
+        && !best_value.mate_moves().is_some_and(|n| n < 0);
 
     let mut facts = MoveFacts {
         played: played_value,
@@ -198,24 +239,26 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
         has_siblings: lines.len() > 1,
         events: MoveEvents::default(),
         material: MaterialFacts {
-            // Getting mated counts unless the best move is mated too (recovered).
-            loses_material_or_mated: material_lost >= cfg.blunder_material_threshold_cp
-                || (played_value.mate_moves().is_some_and(|n| n < 0)
-                    && !best_value.mate_moves().is_some_and(|n| n < 0)),
-            // A margin keeps PV noise in lost positions (where every line sheds
-            // material) from flipping this fact.
-            loses_more_material_than_best: played_walk.end
-                <= best_walk.end - cfg.forgiving_material_lost_cp,
+            loses_material_or_mated: material_lost >= cfg.blunder_material_threshold_cp || mated,
+            loses_more_material_than_best,
             // In forced-mate lines material is meaningless; the mate rules decide.
             material_lost_cp: (!played_value.is_mate()).then_some(material_lost),
-            drops_material: !played_is_best
-                && material_lost >= 100
-                && material_lost > best_gain.max(0),
+            drops_material: !played_is_best && guard_lost >= 100 && guard_lost > guard_gain,
         },
         opponent_previous_ep_lost: input.opponent_previous_ep_lost,
         missed: MissedChances::default(),
     };
     let grade = classification::precision(&facts, cfg);
+    // Recovered "loses material or gets mated" (read only to soften a Blunder): the move loses
+    // more material than the best move, or the opponent's best reply wins material at once or
+    // later in its line, or the move gets mated while the best move does not.
+    if cfg.decoded_blunder_softening {
+        let permits = grade == Some(Precision::Blunder)
+            && input
+                .after_line
+                .is_some_and(|r| coach::permits_material(after, line_input(r), m, horizon));
+        facts.material.loses_material_or_mated = loses_more_than_best_line || permits || mated;
+    }
     let good_grade = matches!(grade, Some(Precision::Best | Precision::Excellent));
     let endgame_gain_ok = |walk: &LineMaterial, min: i32| {
         input.phase_after != Phase::Endgame || walk.max - walk.start >= min
@@ -370,10 +413,29 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
         || input
             .opponent_previous_ep_lost
             .is_some_and(|l| l >= cfg.miss.tactic_min_opponent_ep_lost);
+    let line_events = cfg.miss.decoded_tactic || cfg.miss.decoded_free_piece;
+    let on_best = if line_events && grade >= Some(Precision::Mistake) {
+        coach::missed_on_best_line(
+            before,
+            line_input(best_line),
+            input.previous,
+            horizon,
+            input.phase_after,
+        )
+    } else {
+        coach::MissedOnBestLine::default()
+    };
     facts.missed = MissedChances {
-        free_piece: after_opponent_error
-            && takes_free_piece(&best_walk, cfg.miss.free_piece_min_value_cp),
-        tactic: after_opponent_error && best_gain >= cfg.miss.tactic_min_gain_cp,
+        free_piece: if cfg.miss.decoded_free_piece {
+            on_best.free_piece
+        } else {
+            after_opponent_error && takes_free_piece(&best_walk, cfg.miss.free_piece_min_value_cp)
+        },
+        tactic: if cfg.miss.decoded_tactic {
+            on_best.wins_material
+        } else {
+            after_opponent_error && best_gain >= cfg.miss.tactic_min_gain_cp
+        },
         win: oc(best_value) >= ExpectedOutcome::Winning
             && oc(played_value) <= ExpectedOutcome::Equal,
         comeback: oc(mover_value_before) <= ExpectedOutcome::Worse
@@ -391,9 +453,13 @@ pub(crate) fn judge_move(input: &MoveInput<'_>, cfg: &ReviewConfig) -> MoveJudge
             )
             .is_some()
         }) && ep_best >= cfg.miss.brilliant_min_best_ep,
-        opportunity: input
-            .opponent_previous_ep_lost
-            .is_some_and(|l| l >= cfg.miss.opportunity_min_opponent_ep_lost),
+        opportunity: if cfg.miss.decoded_opportunity {
+            input.previous_moves.opponent_erred && oc(best_value) >= ExpectedOutcome::Equal
+        } else {
+            input
+                .opponent_previous_ep_lost
+                .is_some_and(|l| l >= cfg.miss.opportunity_min_opponent_ep_lost)
+        },
     };
 
     let outcome = classification::classify(&facts, cfg);
