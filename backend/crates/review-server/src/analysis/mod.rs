@@ -552,7 +552,7 @@ fn build_review(
     let highest_elo = white_elo.unwrap_or(0).max(black_elo.unwrap_or(0));
     let phases = phases(game);
 
-    let mut caps = Caps2State::default();
+    let mut caps = Caps2State::with_score_scale(cfg.caps_score_scale);
     let mut outcomes: Vec<MoveOutcome> = Vec::with_capacity(game.moves.len());
     let mut opponent_previous_ep_lost: Option<f64> = None;
     // Per move, what the same side's next move reads.

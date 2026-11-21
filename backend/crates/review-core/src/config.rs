@@ -20,7 +20,7 @@ pub struct ReviewConfig {
     pub rating_min: i32,
     pub rating_max: i32,
     /// Added to `max(WhiteElo, BlackElo)` before the clamp. Calibrated: 200
-    /// (see `docs/parity.md`).
+    ///.
     pub rating_offset: i32,
     /// Material (cp) a Blunder must actually lose to stay a Blunder (fallback for
     /// `is_losing_material_or_getting_mated`).
@@ -46,8 +46,13 @@ pub struct ReviewConfig {
     pub great_find: GreatFindConfig,
     pub miss: MissConfig,
     /// Exclude moves made when the mover was already completely lost from the
-    /// overall accuracy (Unknown caller flag; default on).
+    /// overall accuracy. Off: the reference's game accuracy keeps them. Phase accuracies
+    /// always exclude them.
     pub caps_exclude_completely_lost: bool,
+    /// Factor applied to both scores (pawns) before the CAPS2 bands; mate scores are not
+    /// scaled. 1.0 is the recovered formula. Calibrated: 1.4, which brings our accuracy in
+    /// line with the reference's on the calibration games.
+    pub caps_score_scale: f64,
     /// Plies of the principal variation inspected for material changes (fallback).
     pub material_horizon_plies: u32,
     /// Book moves must form an unbroken run from the start. Off by default: a move is
@@ -236,7 +241,8 @@ impl Default for ReviewConfig {
             brilliant: BrilliantConfig::default(),
             great_find: GreatFindConfig::default(),
             miss: MissConfig::default(),
-            caps_exclude_completely_lost: true,
+            caps_exclude_completely_lost: false,
+            caps_score_scale: 1.4,
             material_horizon_plies: 6,
             book_requires_unbroken: false,
             coach: CoachConfig::default(),
