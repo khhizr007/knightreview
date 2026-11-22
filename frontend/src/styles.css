@@ -4373,16 +4373,18 @@ select option {
 }
 
 .drill {
+  /* The board's size (BoardView reads it): as large as fits beside the panel. */
+  --board-size: min(calc(100dvh - 140px), calc(100vw - 400px - 3 * var(--gap)), 640px);
   display: grid;
-  grid-template-columns: minmax(0, min(78vh, 620px)) minmax(300px, 400px);
+  grid-template-columns: var(--board-size) minmax(300px, 400px);
   gap: var(--gap);
   justify-content: center;
   align-items: start;
 }
 
 .drill__board {
-  width: 100%;
-  aspect-ratio: 1;
+  width: var(--board-size);
+  height: var(--board-size);
 }
 
 .drill__panel {
@@ -4553,7 +4555,8 @@ select option {
 
 @media (max-width: 860px) {
   .drill {
-    grid-template-columns: 1fr;
+    --board-size: min(calc(100vw - 32px), 640px);
+    grid-template-columns: var(--board-size);
   }
 
   .trainer__numbers {
