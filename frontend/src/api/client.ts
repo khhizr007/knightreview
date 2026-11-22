@@ -10,6 +10,11 @@ import type { PositionAnalysisResponse } from "./generated/PositionAnalysisRespo
 import type { ReviewResult } from "./generated/ReviewResult";
 import type { ReviewStatus } from "./generated/ReviewStatus";
 import type { SidelineJudgement } from "./generated/SidelineJudgement";
+import type { ThemeInfo } from "./generated/ThemeInfo";
+import type { TrainGenerateRequest } from "./generated/TrainGenerateRequest";
+import type { TrainGenerateResponse } from "./generated/TrainGenerateResponse";
+import type { TrainGradeRequest } from "./generated/TrainGradeRequest";
+import type { TrainGradeResponse } from "./generated/TrainGradeResponse";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -76,4 +81,9 @@ export const api = {
   /** Classifies a sideline move with the review's rules, from the browser engine's lines. */
   judgeMove: (id: string, req: JudgeMoveRequest, signal?: AbortSignal) =>
     request<SidelineJudgement>("POST", `/api/reviews/${encodeURIComponent(id)}/judge`, req, signal),
+  /** Grades a move in a drill (stateless: the drill carries what grading needs). */
+  gradeDrill: (req: TrainGradeRequest, signal?: AbortSignal) =>
+    request<TrainGradeResponse>("POST", "/api/train/grade", req, signal),
+  generateDrills: (req: TrainGenerateRequest) => request<TrainGenerateResponse>("POST", "/api/train/generate", req),
+  trainThemes: () => request<ThemeInfo[]>("GET", "/api/train/themes"),
 };
