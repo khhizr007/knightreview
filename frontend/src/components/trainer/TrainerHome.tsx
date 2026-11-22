@@ -63,9 +63,11 @@ export function TrainerHome({ onBack }: { onBack: () => void }) {
     const items = buildSession({ items: state.items, schedule: state.schedule, themes: state.themes, now: Date.now(), filter });
     if (items.length === 0) {
       setMessage("No drills to practise here yet.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setMessage(null);
+    window.scrollTo({ top: 0 });
     setView({ kind: "session", items, filter });
   };
 

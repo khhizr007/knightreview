@@ -130,6 +130,15 @@ describe("session", () => {
     expect(buildSession({ ...base, filter: { kind: "theme", theme: "pin" } }).map((i) => i.id)).toEqual(["2"]);
     expect(buildSession({ ...base, filter: { kind: "game", gameKey: "x" } }).map((i) => i.id)).toEqual(["3"]);
   });
+
+  it("practises a picked theme on demand, even when none of it is due", () => {
+    const items = [stored({ id: "1", theme: "develop", kind: "opening" }), stored({ id: "2", theme: "develop", kind: "opening" })];
+    const schedule = new Map(items.map((i) => [i.id, { item_id: i.id, box: 2, due_at: NOW + 3 * DAY_MS, retired: false }]));
+    const base = { items, schedule, themes: new Map(), now: NOW };
+    expect(buildSession({ ...base, filter: { kind: "theme", theme: "develop" } })).toHaveLength(2);
+    // Today's session keeps to the schedule.
+    expect(buildSession(base)).toHaveLength(0);
+  });
 });
 
 describe("store", () => {

@@ -95,6 +95,18 @@ export function buildSession(input: SessionInput): StoredItem[] {
   take(mastered, 1);
   take(fresh, size);
   take(due, size);
+  // A drill set the player picked (a family or a theme) is practised on demand: when nothing
+  // is due or new, the drills that come back soonest fill it.
+  if (f.kind !== "today") {
+    const later = pool
+      .filter((it) => !chosen.includes(it))
+      .sort((a, b) => {
+        const sa = schedule.get(a.id);
+        const sb = schedule.get(b.id);
+        return Number(!!sa?.retired) - Number(!!sb?.retired) || (sa?.due_at ?? 0) - (sb?.due_at ?? 0);
+      });
+    take(later, size);
+  }
   return spreadGames(chosen);
 }
 
