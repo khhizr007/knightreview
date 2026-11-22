@@ -4042,3 +4042,526 @@ select option {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* =================================================================== trainer */
+
+.topbar__end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar__link {
+  min-height: 32px;
+}
+
+.button--small {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
+.button--large {
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: 1rem;
+}
+
+.main--trainer {
+  max-width: 1180px;
+}
+
+.trainer__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.trainer__title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.trainer__head p {
+  margin: 4px 0 0;
+}
+
+.trainer__hero {
+  margin-bottom: var(--gap);
+}
+
+.trainer__numbers {
+  display: flex;
+  gap: 28px;
+  margin-bottom: 14px;
+}
+
+.trainer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--gap);
+  align-items: start;
+}
+
+.tcard {
+  background: var(--panel);
+  border-radius: var(--r-lg);
+  box-shadow: var(--panel-shadow);
+  padding: 18px 20px;
+}
+
+.tcard__title {
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.tcard__sub {
+  margin: 16px 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.tstats {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.tstat {
+  display: flex;
+  flex-direction: column;
+}
+
+.tstat__num {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.tstat__num--good {
+  color: var(--c-best);
+}
+
+.tstat__num--ok {
+  color: var(--c-inaccuracy);
+}
+
+.tstat__num--bad {
+  color: var(--c-mistake);
+}
+
+.tstat__label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tbar {
+  display: grid;
+  grid-template-columns: 9.5em 1fr 3.2em;
+  align-items: center;
+  gap: 10px;
+  margin: 7px 0;
+  font-size: 0.9rem;
+}
+
+.tbar__track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--inset);
+  overflow: visible;
+}
+
+.tbar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--green-500), var(--green-300));
+}
+
+.tbar__mark {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 16px;
+  background: var(--text);
+  opacity: 0.7;
+}
+
+.tbar__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.tendings,
+.tlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tendings li,
+.tlist li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.tendings li:first-child,
+.tlist li:first-child {
+  border-top: 0;
+}
+
+.tendings__name {
+  font-family: var(--serif);
+  font-weight: 600;
+}
+
+.tgrid__row {
+  margin-bottom: 12px;
+}
+
+.tgrid__family {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.tgrid__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ttile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 96px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--lift);
+  transition: transform 0.12s var(--ease), box-shadow 0.12s;
+}
+
+.ttile:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--lift-hover);
+}
+
+.ttile__name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.ttile__meta {
+  font-size: 0.74rem;
+  opacity: 0.75;
+}
+
+.ttile--new {
+  background: var(--surface);
+}
+
+.ttile--shaky {
+  background: color-mix(in srgb, var(--c-mistake) 34%, var(--panel));
+}
+
+.ttile--learning {
+  background: color-mix(in srgb, var(--c-inaccuracy) 30%, var(--panel));
+}
+
+.ttile--solid {
+  background: color-mix(in srgb, var(--c-best) 40%, var(--panel));
+}
+
+.tlegend {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0 0;
+}
+
+.tlegend__dot {
+  padding: 1px 8px;
+  border-radius: 9px;
+  color: var(--text);
+}
+
+.bulk__form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bulk__form input,
+.bulk__form select {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r);
+  background: var(--inset);
+  color: var(--text);
+  font: inherit;
+}
+
+.bulk__form input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.bulk__speeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 10px 0;
+}
+
+.bulk__speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--text-2);
+}
+
+/* The drill: the board, the coach beside it. */
+.drill-screen__bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.drill-screen__progress {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--inset);
+  overflow: hidden;
+}
+
+.drill-screen__progress span {
+  display: block;
+  height: 100%;
+  background: var(--green-300);
+  transition: width 0.3s var(--ease);
+}
+
+.drill {
+  display: grid;
+  grid-template-columns: minmax(0, min(78vh, 620px)) minmax(300px, 400px);
+  gap: var(--gap);
+  justify-content: center;
+  align-items: start;
+}
+
+.drill__board {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.drill__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--r-lg);
+}
+
+.drill__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.drill__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.drill__kind {
+  padding: 2px 8px;
+  border-radius: 9px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--surface);
+}
+
+.drill__kind--endgame {
+  background: color-mix(in srgb, var(--c-great) 45%, var(--panel));
+}
+
+.drill__kind--opening {
+  background: color-mix(in srgb, var(--c-book) 45%, var(--panel));
+}
+
+.drill__kind--miss {
+  background: color-mix(in srgb, var(--c-miss) 45%, var(--panel));
+}
+
+.drill__kind--blunder {
+  background: color-mix(in srgb, var(--c-blunder) 45%, var(--panel));
+}
+
+.drill__theme {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.drill__context {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.drill__speech p {
+  margin: 0 0 6px;
+}
+
+.drill__speech p:last-child {
+  margin-bottom: 0;
+}
+
+.drill__hint {
+  font-style: italic;
+}
+
+.drill__grade {
+  font-weight: 700;
+}
+
+.drill__grade--good {
+  color: var(--c-best);
+}
+
+.drill__grade--ok {
+  color: #b58d14;
+}
+
+.drill__grade--bad {
+  color: var(--c-blunder);
+}
+
+.drill__panel .drill__grade--ok {
+  color: var(--c-inaccuracy);
+}
+
+.drill__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.drill__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drill__line-move button {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.drill__line-move--played button {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.drill__keys {
+  margin: 0;
+}
+
+.concept__title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.4rem;
+}
+
+.concept__idea {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.concept__task {
+  margin: 0;
+  font-weight: 600;
+}
+
+.summary {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.summary h1 {
+  margin-top: 0;
+  font-family: var(--serif);
+}
+
+.trainer-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--r-lg);
+  background: var(--panel-head);
+  box-shadow: var(--panel-shadow);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .drill {
+    grid-template-columns: 1fr;
+  }
+
+  .trainer__numbers {
+    gap: 18px;
+  }
+
+  .trainer__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

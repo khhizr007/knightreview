@@ -11,6 +11,10 @@ import { useReviewJob } from "./hooks/useReviewJob";
 import { api } from "./api/client";
 import { findHandoffGame, handoffCandidates, parseHandoffHash } from "./lib/handoff";
 import { parseReviewHash, reviewHash } from "./lib/hash";
+import { myUsernames, mySide } from "./lib/players";
+import { trainerDb } from "./lib/trainer/db";
+import { addReview } from "./lib/trainer/store";
+import { TrainerHome } from "./components/trainer/TrainerHome";
 
 /** The move a reloaded page showed in this review, from the URL hash. */
 function hashMove(id: string): number | null {
@@ -20,6 +24,8 @@ function hashMove(id: string): number | null {
 
 export function App() {
   const { view, start, follow, cancel, reset } = useReviewJob();
+  const [trainer, setTrainer] = useState(() => new URLSearchParams(window.location.search).get("view") === "trainer");
+  const [added, setAdded] = useState<number>(0);
   // The game as parsed at import, so the board and players show while the review runs.
   const [game, setGame] = useState<GameSummary | null>(null);
   // A game opened from the browser extension: null, being looked up, or why it failed.
@@ -67,6 +73,51 @@ export function App() {
     }
   }, [view]);
 
+  // A finished review's drills go to the trainer (the server forgets reviews after a while).
+  useEffect(() => {
+    if (view.kind !== "done") return;
+    let live = true;
+    void (async () => {
+      const db = await trainerDb();
+      const side = view.result.settings.player_side ?? mySide(view.result.game, myUsernames());
+      const n = await addReview(db, view.result, side);
+      if (live) setAdded(n);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [view]);
+
+  const openTrainer = (open: boolean) => {
+    const url = open ? `${window.location.pathname}?view=trainer` : window.location.pathname;
+    window.history.pushState(null, "", url);
+    setAdded(0);
+    setTrainer(open);
+  };
+
+  useEffect(() => {
+    const onPop = () => setTrainer(new URLSearchParams(window.location.search).get("view") === "trainer");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  if (trainer) {
+    return (
+      <div className="app">
+        <PieceDefs />
+        <ClassificationIconDefs />
+        <header className="topbar">
+          <Logo />
+          <GitHubStars />
+        </header>
+        <main className="main main--trainer">
+          <TrainerHome onBack={() => openTrainer(false)} />
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  }
+
   const startOver = () => {
     window.history.replaceState(null, "", window.location.pathname);
     setGame(null);
@@ -81,7 +132,12 @@ export function App() {
       {!reviewLayout && (
         <header className="topbar">
           <Logo />
-          <GitHubStars />
+          <div className="topbar__end">
+            <button type="button" className="button button--ghost topbar__link" onClick={() => openTrainer(true)}>
+              Trainer
+            </button>
+            <GitHubStars />
+          </div>
         </header>
       )}
       <main className={reviewLayout ? "main main--review" : "main"}>
@@ -139,6 +195,19 @@ export function App() {
         )}
       </main>
       {!reviewLayout && <SiteFooter />}
+      {added > 0 && view.kind === "done" && (
+        <div className="trainer-toast" role="status">
+          <span>
+            {added} {added === 1 ? "drill" : "drills"} from this game added to your trainer.
+          </span>
+          <button type="button" className="button button--small button--primary" onClick={() => openTrainer(true)}>
+            Practise
+          </button>
+          <button type="button" className="button button--small button--ghost" onClick={() => setAdded(0)} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }
