@@ -21,7 +21,7 @@ outcome_thresholds: [number, number, number, number, number, number],
 rating_min: number, rating_max: number, 
 /**
  * Added to `max(WhiteElo, BlackElo)` before the clamp. Calibrated: 200
- * (see `docs/parity.md`).
+ *.
  */
 rating_offset: number, 
 /**
@@ -56,9 +56,16 @@ compare_material_lost: boolean,
 allow_tricky: boolean, brilliant: BrilliantConfig, great_find: GreatFindConfig, miss: MissConfig, 
 /**
  * Exclude moves made when the mover was already completely lost from the
- * overall accuracy (Unknown caller flag; default on).
+ * overall accuracy. Off: the reference's game accuracy keeps them. Phase accuracies
+ * always exclude them.
  */
 caps_exclude_completely_lost: boolean, 
+/**
+ * Factor applied to both scores (pawns) before the CAPS2 bands; mate scores are not
+ * scaled. 1.0 is the recovered formula. Calibrated: 1.4, which brings our accuracy in
+ * line with the reference's on the calibration games.
+ */
+caps_score_scale: number, 
 /**
  * Plies of the principal variation inspected for material changes (fallback).
  */

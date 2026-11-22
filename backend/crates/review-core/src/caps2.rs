@@ -61,9 +61,18 @@ impl Floor {
 }
 
 /// State threaded through a game when scoring moves in order.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Caps2State {
     floors: [Floor; 2],
+    /// Factor applied to both scores (pawns) before the non-mate bands. 1.0 is the
+    /// decoded formula.
+    score_scale: f64,
+}
+
+impl Default for Caps2State {
+    fn default() -> Self {
+        Self::with_score_scale(1.0)
+    }
 }
 
 /// One move to score.
@@ -88,6 +97,15 @@ fn thresholds(played_pawns: f64) -> (f64, f64, f64) {
 }
 
 impl Caps2State {
+    /// State whose non-mate scores are multiplied by `scale` before scoring
+    /// (`ReviewConfig::caps_score_scale`).
+    pub fn with_score_scale(scale: f64) -> Self {
+        Self {
+            floors: [Floor::default(); 2],
+            score_scale: scale,
+        }
+    }
+
     /// CAPS2 score of one move, 100 = perfect. `None` for forced moves.
     pub fn score(&mut self, m: &Caps2Move) -> Option<f64> {
         if m.is_forced {
@@ -143,8 +161,8 @@ impl Caps2State {
             });
         }
 
-        let p = played.to_pawns();
-        let delta = best.to_pawns() - p;
+        let p = played.to_pawns() * self.score_scale;
+        let delta = best.to_pawns() * self.score_scale - p;
         let (t1, t2, t3) = thresholds(p);
         let raw = if delta <= 0.0 {
             100.0
@@ -294,6 +312,21 @@ mod tests {
         let mut black = mv(-1500, 1500);
         black.mover = Side::Black;
         assert_eq!(s.score(&black), Some(-100.0));
+    }
+
+    #[test]
+    fn score_scale_multiplies_both_scores_before_the_bands() {
+        // +0.50 -> +0.00 at scale 1.3 reads as +0.65 -> +0.00.
+        let mut s = Caps2State::with_score_scale(1.3);
+        let mut plain = Caps2State::default();
+        assert!(approx(
+            s.score(&mv(0, 50)).unwrap(),
+            plain.score(&mv(0, 65)).unwrap()
+        ));
+        // Clamps read the scaled played score: +8 at scale 1.3 is +10.4, never below 80.
+        assert_eq!(s.score(&mv(800, 2000)), Some(80.0));
+        // Equal scores stay perfect.
+        assert_eq!(s.score(&mv(30, 30)), Some(100.0));
     }
 
     #[test]
