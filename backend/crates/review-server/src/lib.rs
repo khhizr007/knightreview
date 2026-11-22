@@ -11,6 +11,7 @@ pub mod jobs;
 pub mod openings;
 pub mod pgn;
 pub mod store;
+pub mod train;
 
 use std::sync::Arc;
 

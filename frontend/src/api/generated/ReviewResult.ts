@@ -7,6 +7,7 @@ import type { PlyReview } from "./PlyReview";
 import type { ReviewConfig } from "./ReviewConfig";
 import type { ReviewSettingsUsed } from "./ReviewSettingsUsed";
 import type { SideSummary } from "./SideSummary";
+import type { TrainItem } from "./TrainItem";
 
 export type ReviewResult = { game: GameInfo, engine: string, settings: ReviewSettingsUsed, 
 /**
@@ -20,4 +21,9 @@ biggest_swings: Array<number>, phase_starts: PhaseStarts,
 /**
  * Known deviations from the reference implementation that affect this review.
  */
-notes: Array<string>, };
+notes: Array<string>, 
+/**
+ * Practice drills made from the game's mistakes (`train::generate`); empty when the trainer
+ * is off. Reviews stored before the trainer existed have none.
+ */
+train_items: Array<TrainItem>, };

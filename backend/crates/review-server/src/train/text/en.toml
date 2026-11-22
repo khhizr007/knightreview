@@ -1,0 +1,139 @@
+# English trainer text. Every word in this file was written for this project.
+#
+# Goals are said before the drill's move: they set the task and never name the move, the piece
+# or the square. Hints are the second hint: the idea in one sentence. Replies are said after the
+# move, by grade. A list holds wordings; one is picked per drill.
+
+# ---------------------------------------------------------------- goals, by kind
+
+[goal]
+opening = [
+  "You're still in the opening. Which move helps your position most?",
+  "Opening time. Find the move that gets your game going.",
+]
+strategy = [
+  "Find the move that improves your position.",
+  "Think about your pieces and pawns. What does the position ask for?",
+]
+miss = [
+  "Your opponent just went wrong. Find the move that makes them pay.",
+  "There's a chance here. Can you find it?",
+]
+miss_brilliant = [
+  "Your opponent just went wrong, and a bold move takes advantage of it. Find it.",
+]
+miss_free_pieces = [
+  "Something is left loose on the board. Find it.",
+  "Look around the board: can you win material right away?",
+]
+blunder = [
+  "You're doing well here. Find a move that keeps it that way.",
+  "Before you move, check what your opponent can do next.",
+]
+blunder_mate = [
+  "Careful: your king is in more danger than it looks. Find a safe move.",
+]
+
+# Endgame technique drills, by family.
+endgame_king_and_pawn = [
+  "King and pawn ending. Every king move counts: find the right one.",
+]
+endgame_rook_and_pawn = [
+  "Rook ending. Find the move that keeps your result.",
+]
+endgame_queen = [
+  "Queen ending. Find the move that keeps your result.",
+]
+endgame_other = [
+  "Endgame. Find the move that keeps your result.",
+]
+
+# ---------------------------------------------------------------- hints, by theme
+
+[hint]
+fork = "Look for a move that attacks two things at once."
+skewer = "Look for a line through a valuable piece to what stands behind it."
+pin = "Look for a piece that cannot move without exposing something behind it."
+discovery = "Moving one piece can uncover an attack by another."
+removes_defender = "One piece is holding everything together. Deal with it."
+trapped_piece = "One of the opponent's pieces has nowhere safe to go."
+free_piece = "Something is not guarded. Count the attackers and defenders."
+brilliant = "Giving up material can be the strongest move. Look at what it opens up."
+mate = "Look at the king. Checks first: is there a forced mate?"
+queen_out_early = "The queen is strong, but it can be chased. Bring out a knight or bishop first."
+same_piece_twice = "Pieces still at home want to come out before one piece moves again."
+loses_castling = "Keep the right to castle: the king wants to get to safety."
+plays_f3 = "The f-pawn guards the king's diagonal. Leave it at home for now."
+develop = "Bring a new piece into the game."
+develop_to_center = "A knight or bishop wants a square near the centre."
+prepare_bishop = "One of your bishops is shut in. Open a way for it."
+bishop_scope = "Give a bishop a longer diagonal."
+fianchetto = "A bishop on the long diagonal can see the whole board."
+prepare_castle_kingside = "Clear the way so your king can castle."
+prepare_castle_queenside = "Clear the way so your king can castle long."
+castle_kingside = "Your king is safer once it has castled."
+castle_queenside = "Castling long brings the king to safety and a rook to the centre."
+castle_same_side = "Tuck your king away: castle."
+castle_opposite_side = "Castle on the other side, then your pawns can attack."
+pawn_to_center = "Put a pawn on a central square."
+gain_tempo = "Develop with a threat, so your opponent has to answer it."
+connect_rooks = "Clear the back rank so your rooks can see each other."
+doubles_pawns = "Keep your pawns healthy: doubled pawns are hard to defend."
+isolates_pawn = "A pawn with no neighbours is a target. Keep your pawns together."
+backward_pawn = "A pawn left behind on a half-open file becomes a target."
+pawn_in_front_of_king = "The pawns in front of your castled king are its shield. Leave them be."
+passive_square = "Put your pieces where they do the most."
+outpost = "Is there a square your opponent's pawns can never attack?"
+centralise_knight = "A knight in the centre reaches the most squares."
+rook_on_seventh = "A rook on the seventh rank attacks pawns and hems in the king."
+take_open_file = "Rooks belong on open files."
+active_square = "Which of your pieces is doing the least? Improve it."
+strike_at_center = "Challenge your opponent's central pawns with a pawn."
+central_break = "A pawn break in the centre can open the game for your pieces."
+prepare_central_push = "Support the square your central pawn wants to reach."
+attack_pawn_chain = "Hit the pawn chain at its base."
+make_passed_pawn = "Can you make a pawn that nothing can stop?"
+push_passed_pawn = "Passed pawns must be pushed."
+create_luft = "Give your king a little air before a back-rank mate becomes a threat."
+endgame_king_and_pawn = "In pawn endings the king is a strong piece. Think about the opposition."
+endgame_rook_and_pawn = "Keep your rook active; rooks belong behind passed pawns."
+endgame_queen = "Watch out for checks and keep your queen close to the action."
+endgame_other = "Activate your king and use every piece."
+
+# The endgame idea found on the best line, when there is one (said instead of the family hint).
+[concept]
+opposition = "Look for the king move that takes the opposition."
+king_activity = "Bring your king into the game."
+passed_pawn_push = "A passed pawn wants to move on."
+rook_behind_passer = "Put your rook behind the passed pawn."
+blockade = "Stop the passed pawn by standing right in front of it."
+trade_into_pawn_ending = "A trade can leave a pawn ending you win. Count it out."
+mating_technique = "Drive the king to the edge, step by step."
+promotion = "There is a pawn that can become a queen."
+
+# ---------------------------------------------------------------- replies, by grade
+
+[reply]
+correct = ["That's it.", "Well found.", "Exactly right."]
+not_incorrect = [
+  "That's playable, but there was a stronger idea here.",
+  "Not bad, but there was more in the position.",
+]
+incorrect = [
+  "That doesn't work. Here is why.",
+  "Not this time. See what happens.",
+]
+same_as_game = ["That's the move you played in the game."]
+fallback = "The engine was not available, so only the exact best move counts."
+
+# Said after "correct", by theme, when the move carries the drill's idea.
+[correct_theme]
+fork = "The fork wins material."
+skewer = "The skewer wins material."
+pin = "The pin does the work."
+discovery = "The discovered attack wins material."
+removes_defender = "With the defender gone, material falls."
+trapped_piece = "The trapped piece is lost."
+free_piece = "The piece was there for the taking."
+brilliant = "A real sacrifice: it works."
+mate = "And the king has nowhere to go."

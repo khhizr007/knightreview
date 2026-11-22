@@ -2,7 +2,7 @@
 
 pub mod detectors;
 pub mod explain;
-mod facts;
+pub(crate) mod facts;
 pub mod model;
 pub mod see;
 pub mod sideline;
@@ -765,7 +765,9 @@ fn build_review(
         });
     }
 
-    summarise(request, infos, outcomes, openings, engine, rating)
+    let mut result = summarise(request, infos, outcomes, openings, engine, rating);
+    result.train_items = crate::train::generate(&result, &cfg.train);
+    result
 }
 
 fn line_input(l: &EngineLine) -> coach::LineInput<'_> {
@@ -950,5 +952,6 @@ fn summarise(
         },
         notes,
         plies: outcomes.into_iter().map(|o| o.ply).collect(),
+        train_items: Vec::new(),
     }
 }

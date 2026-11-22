@@ -9,7 +9,7 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use review_core::{Eval, ReviewConfig, Side};
+use review_core::{Eval, ReviewConfig, Side, TrainConfig};
 use serde::{Deserialize, Serialize};
 use shakmaty::fen::Fen;
 use shakmaty::{CastlingMode, Chess, Color, Position};
@@ -27,6 +27,9 @@ use crate::engine::{AnalysisRequest, EngineError, EngineLine, Evaluator, SearchL
 use crate::jobs::{JobStore, ReviewStatus};
 use crate::openings::OpeningBook;
 use crate::pgn::{ParsedGame, PgnError, parse_pgn};
+use crate::train::grade::{GradeError, TrainGradeRequest, TrainGradeResponse, grade_move};
+use crate::train::themes::ThemeInfo;
+use crate::train::{self, TrainItem};
 use error::ApiError;
 
 const MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
@@ -54,6 +57,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/reviews/{id}/plies/{ply}", get(review_ply))
         .route("/api/reviews/{id}/judge", post(judge_sideline_move))
         .route("/api/positions/analyze", post(analyze_position))
+        .route("/api/train/grade", post(grade_drill_move))
+        .route("/api/train/generate", post(generate_drills))
+        .route("/api/train/themes", get(train_themes))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .with_state(state)
 }
@@ -537,6 +543,60 @@ async fn judge_sideline_move(
             JudgeError::BadLines => ApiError::bad_request("invalid_lines", e.to_string()),
             JudgeError::MissingAfter => ApiError::bad_request("missing_after", e.to_string()),
         })
+}
+
+// ---------------------------------------------------------------- trainer
+
+/// Grades the player's move in a drill (docs/trainer.md §6). Stateless: the drill carries what
+/// grading needs, so the review may have expired on the server.
+async fn grade_drill_move(
+    State(state): State<AppState>,
+    body: Result<Json<TrainGradeRequest>, JsonRejection>,
+) -> Result<Json<TrainGradeResponse>, ApiError> {
+    let Json(req) = body?;
+    grade_move(&req, &state.openings, &ReviewConfig::default())
+        .map(Json)
+        .map_err(|e| match e {
+            GradeError::BadItem => ApiError::bad_request("invalid_item", e.to_string()),
+            GradeError::IllegalMove(_) => ApiError::bad_request("illegal_move", e.to_string()),
+            GradeError::BadLines => ApiError::bad_request("invalid_lines", e.to_string()),
+        })
+}
+
+#[derive(Deserialize, TS)]
+#[ts(export)]
+pub struct TrainGenerateRequest {
+    /// A finished review, as `GET /api/reviews/{id}/result` returned it.
+    pub review: ReviewResult,
+    /// Drill rules (default: the review's own `config.train`).
+    #[ts(optional)]
+    pub config: Option<TrainConfig>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export)]
+pub struct TrainGenerateResponse {
+    pub items: Vec<TrainItem>,
+    pub generator_version: u16,
+}
+
+/// Makes the drills of a review again, with the current rules (for drills of an older
+/// generator version). No engine search is made.
+async fn generate_drills(
+    body: Result<Json<TrainGenerateRequest>, JsonRejection>,
+) -> Result<Json<TrainGenerateResponse>, ApiError> {
+    let Json(req) = body?;
+    let cfg = req
+        .config
+        .unwrap_or_else(|| req.review.config.train.clone());
+    Ok(Json(TrainGenerateResponse {
+        items: train::generate(&req.review, &cfg),
+        generator_version: train::GENERATOR_VERSION,
+    }))
+}
+
+async fn train_themes() -> Json<Vec<ThemeInfo>> {
+    Json(train::themes::all())
 }
 
 // ---------------------------------------------------------------- positions

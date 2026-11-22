@@ -10,6 +10,7 @@ use ts_rs::TS;
 use crate::coach::CoachNote;
 use crate::engine::SearchLimit;
 use crate::openings::OpeningName;
+use crate::train::TrainItem;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -209,4 +210,8 @@ pub struct ReviewResult {
     pub phase_starts: PhaseStarts,
     /// Known deviations from the reference implementation that affect this review.
     pub notes: Vec<String>,
+    /// Practice drills made from the game's mistakes (`train::generate`); empty when the trainer
+    /// is off. Reviews stored before the trainer existed have none.
+    #[serde(default)]
+    pub train_items: Vec<TrainItem>,
 }

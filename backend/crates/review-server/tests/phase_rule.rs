@@ -13,7 +13,10 @@ const FIXTURE: &str = include_str!("fixtures/phase_positions.tsv");
 fn reference_phase_matches_the_fixture_on_every_position() {
     let mut checked = 0;
     let mut wrong = Vec::new();
-    for line in FIXTURE.lines().filter(|l| !l.starts_with('#') && !l.is_empty()) {
+    for line in FIXTURE
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.is_empty())
+    {
         let (fen, want) = line.split_once('\t').expect("fen and phase");
         let pos: Chess = fen
             .parse::<Fen>()
