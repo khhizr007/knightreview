@@ -17,7 +17,7 @@ pub use classification::{
     Classification, ClassificationOutcome, MaterialFacts, MissKind, MissedChances, MoveEvents,
     MoveFacts, Precision, Rule, classify,
 };
-pub use config::ReviewConfig;
+pub use config::{PhaseRule, ReviewConfig, TrainConfig};
 pub use expected_points::{
     ExpectedOutcome, cp_to_expected_points, expected_outcome, rating_for_expected_points,
 };

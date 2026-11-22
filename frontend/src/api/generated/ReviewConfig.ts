@@ -3,6 +3,8 @@ import type { BrilliantConfig } from "./BrilliantConfig";
 import type { CoachConfig } from "./CoachConfig";
 import type { GreatFindConfig } from "./GreatFindConfig";
 import type { MissConfig } from "./MissConfig";
+import type { PhaseRule } from "./PhaseRule";
+import type { TrainConfig } from "./TrainConfig";
 
 export type ReviewConfig = { 
 /**
@@ -74,4 +76,13 @@ material_horizon_plies: number,
  * Book moves must form an unbroken run from the start. Off by default: a move is
  * also marked Book when play transposes back into the book (calibration).
  */
-book_requires_unbroken: boolean, coach: CoachConfig, };
+book_requires_unbroken: boolean, 
+/**
+ * How the game phase of each position is found (see [`PhaseRule`]). The phase picks the
+ * phase accuracies, the coach's opening and endgame ideas, and the review's phase starts.
+ */
+phase_rule: PhaseRule, coach: CoachConfig, 
+/**
+ * Practice drills made from the game's mistakes (`ReviewResult.train_items`).
+ */
+train: TrainConfig, };

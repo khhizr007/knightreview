@@ -58,7 +58,58 @@ pub struct ReviewConfig {
     /// Book moves must form an unbroken run from the start. Off by default: a move is
     /// also marked Book when play transposes back into the book (calibration).
     pub book_requires_unbroken: bool,
+    /// How the game phase of each position is found (see [`PhaseRule`]). The phase picks the
+    /// phase accuracies, the coach's opening and endgame ideas, and the review's phase starts.
+    pub phase_rule: PhaseRule,
     pub coach: CoachConfig,
+    /// Practice drills made from the game's mistakes (`ReviewResult.train_items`).
+    pub train: TrainConfig,
+}
+
+/// The rule that gives each position of a game its phase.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum PhaseRule {
+    /// Our first heuristic: piece count, sparse back ranks and a move-number cap, kept
+    /// monotonic over the game.
+    #[default]
+    Legacy,
+    /// The reference's rule (recovered): a material weight for the endgame and a development
+    /// score for the middlegame, with holds while castling, checks, captures and development
+    /// moves go on (`board::reference_phase`).
+    Reference,
+}
+
+/// Practice drills made from the game's mistakes (the trainer, `train::generate`). Drill
+/// generation reads the finished review only: it makes no engine search.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(export)]
+pub struct TrainConfig {
+    pub enabled: bool,
+    /// Most drills kept per game and side (the largest expected-points losses first).
+    pub max_per_game: u32,
+    /// Moves made with less than this on the clock (ms) are not drilled: time trouble.
+    pub skip_time_trouble_ms: u32,
+    /// Moves made with less than this share of the starting time are not drilled either.
+    pub skip_time_trouble_fraction: f64,
+    /// Endgame technique drills: from a holdable or won endgame to a clearly worse one, without
+    /// material being the reason. The reference has this rule but does not ship it; off until
+    /// its drills have been checked by hand.
+    pub endgame_maker: bool,
+}
+
+impl Default for TrainConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_per_game: 6,
+            skip_time_trouble_ms: 10_000,
+            skip_time_trouble_fraction: 0.05,
+            endgame_maker: false,
+        }
+    }
 }
 
 /// Brilliant detection: a Best move, or a Good one when
@@ -245,7 +296,9 @@ impl Default for ReviewConfig {
             caps_score_scale: 1.4,
             material_horizon_plies: 6,
             book_requires_unbroken: false,
+            phase_rule: PhaseRule::Legacy,
             coach: CoachConfig::default(),
+            train: TrainConfig::default(),
         }
     }
 }

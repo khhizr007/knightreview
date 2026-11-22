@@ -1,6 +1,6 @@
 //! Board helpers on top of `shakmaty`: material, perspective, FEN, phases.
 
-use review_core::{Phase, Side};
+use review_core::{Phase, PhaseRule, Side};
 use shakmaty::fen::{Epd, Fen};
 use shakmaty::uci::UciMove;
 use shakmaty::zobrist::Zobrist64;
@@ -114,6 +114,139 @@ pub fn raw_phase(board: &Board, ply: u32) -> Phase {
     }
 }
 
+/// The reference's phase of a position on its own (recovered; checked against the reference on
+/// 20,000 positions): an endgame below a material weight of 10 (minor = 1, rook = 2, queen = 3,
+/// both sides), else a middlegame when the development score passes 25. The score grows as
+/// pieces and pawns leave their home ranks, queens come off and castling rights go.
+pub fn reference_phase(pos: &Chess) -> Phase {
+    let board = pos.board();
+    let minors = (board.knights() | board.bishops()).count() as i32;
+    let rooks = board.rooks().count() as i32;
+    let queens = board.queens().count() as i32;
+    if minors + 2 * rooks + 3 * queens < 10 {
+        return Phase::Endgame;
+    }
+    let mut home = [0i32; 4]; // minors, rooks and queens on their own back rank; pawns on their first two ranks
+    for color in [Color::White, Color::Black] {
+        let own = board.by_color(color);
+        let (back, second) = if color == Color::White {
+            (Rank::First, Rank::Second)
+        } else {
+            (Rank::Eighth, Rank::Seventh)
+        };
+        let back = shakmaty::Bitboard::from_rank(back);
+        let start = back | shakmaty::Bitboard::from_rank(second);
+        home[0] += (own & (board.knights() | board.bishops()) & back).count() as i32;
+        home[1] += (own & board.rooks() & back).count() as i32;
+        home[2] += (own & board.queens() & back).count() as i32;
+        home[3] += (own & board.pawns() & start).count() as i32;
+    }
+    let pawns = board.pawns().count() as i32;
+    let castles = pos.castles();
+    let lost = [Color::White, Color::Black]
+        .into_iter()
+        .filter(|c| !castles.has_color(*c))
+        .count() as i32
+        * 3;
+    let score = 3 * (16 - minors - rooks - home[1]) - 2 * home[0] - pawns - home[3] - 4 * home[2]
+        + 5 * (2 - queens)
+        + lost
+        + 56;
+    if score > 25 {
+        Phase::Middlegame
+    } else {
+        Phase::Opening
+    }
+}
+
+/// A development move by the reference's rule: castling, or the first move of a knight, bishop,
+/// rook or queen from its starting square. `moved` holds the squares earlier moves left from or
+/// went to: a piece on an untouched starting square has not moved yet.
+fn is_development_move(before: &Chess, m: Move, moved: shakmaty::Bitboard) -> bool {
+    if m.is_castle() {
+        return true;
+    }
+    let Some(from) = m.from() else { return false };
+    let color = before.turn();
+    let start = match m.role() {
+        Role::Knight => shakmaty::Bitboard::from(Square::B1) | Square::G1,
+        Role::Bishop => shakmaty::Bitboard::from(Square::C1) | Square::F1,
+        Role::Rook => shakmaty::Bitboard::from(Square::A1) | Square::H1,
+        Role::Queen => shakmaty::Bitboard::from(Square::D1),
+        Role::Pawn | Role::King => return false,
+    };
+    let start = if color == Color::White {
+        start
+    } else {
+        start.flip_vertical()
+    };
+    start.contains(from) && !moved.contains(from)
+}
+
+/// The phase of every position of a game (`positions[k + 1]` follows `moves[k]`).
+///
+/// - [`PhaseRule::Legacy`]: [`raw_phase`], never going back.
+/// - [`PhaseRule::Reference`]: the larger of the previous phase and [`reference_phase`], except
+///   that the opening goes on through a move that castles, gives or answers check, captures or
+///   develops a piece, and the middlegame goes on while the next move gives or answers check or
+///   captures.
+pub fn game_phases(positions: &[Chess], moves: &[Move], rule: PhaseRule) -> Vec<Phase> {
+    let mut out = Vec::with_capacity(positions.len());
+    match rule {
+        PhaseRule::Legacy => {
+            let mut current = Phase::Opening;
+            for (ply, pos) in positions.iter().enumerate() {
+                current = current.max(raw_phase(pos.board(), ply as u32));
+                out.push(current);
+            }
+        }
+        PhaseRule::Reference => {
+            let Some(first) = positions.first() else {
+                return out;
+            };
+            out.push(reference_phase(first));
+            let mut moved = shakmaty::Bitboard::EMPTY;
+            for (k, pos) in positions.iter().enumerate().skip(1) {
+                let parent = out[k - 1];
+                let before = &positions[k - 1];
+                let phase = match moves.get(k - 1) {
+                    Some(&m) => {
+                        let holds_opening = parent == Phase::Opening
+                            && (m.is_castle()
+                                || pos.is_check()
+                                || before.is_check()
+                                || m.is_capture()
+                                || is_development_move(before, m, moved));
+                        let next = moves.get(k);
+                        let holds_middlegame = parent == Phase::Middlegame
+                            && next.is_some_and(|n| {
+                                n.is_capture()
+                                    || pos.is_check()
+                                    || positions.get(k + 1).is_some_and(Position::is_check)
+                            });
+                        if holds_opening {
+                            Phase::Opening
+                        } else if holds_middlegame {
+                            Phase::Middlegame
+                        } else {
+                            parent.max(reference_phase(pos))
+                        }
+                    }
+                    None => parent.max(reference_phase(pos)),
+                };
+                if let Some(&m) = moves.get(k - 1) {
+                    if let Some(from) = m.from() {
+                        moved.add(from);
+                    }
+                    moved.add(m.to());
+                }
+                out.push(phase);
+            }
+        }
+    }
+    out
+}
+
 /// Squares of a move for board highlighting (castling uses king → destination).
 pub fn move_squares(m: Move) -> (Option<Square>, Square) {
     match m {
@@ -185,5 +318,66 @@ mod tests {
             .into_position(CastlingMode::Standard)
             .unwrap();
         assert_eq!(raw_phase(pos.board(), 60), Phase::Endgame);
+    }
+
+    fn at(fen: &str) -> Chess {
+        fen.parse::<Fen>()
+            .unwrap()
+            .into_position(CastlingMode::Standard)
+            .unwrap()
+    }
+
+    #[test]
+    fn reference_phase_of_simple_positions() {
+        assert_eq!(reference_phase(&Chess::default()), Phase::Opening);
+        // A rook and a queen each side: weight 2*2 + 3*2 = 10, not an endgame; no castling
+        // rights, so the score is high.
+        assert_eq!(
+            reference_phase(&at("3qr1k1/5ppp/8/8/8/8/5PPP/3QR1K1 w - - 0 30")),
+            Phase::Middlegame
+        );
+        // Rooks only: weight 8, an endgame.
+        assert_eq!(
+            reference_phase(&at("3rr1k1/5ppp/8/8/8/8/5PPP/3RR1K1 w - - 0 30")),
+            Phase::Endgame
+        );
+    }
+
+    #[test]
+    fn the_reference_opening_holds_through_development_and_captures() {
+        let mut pos = Chess::default();
+        let mut positions = vec![pos.clone()];
+        let mut moves = Vec::new();
+        for san in ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "Bxc6", "dxc6", "O-O"] {
+            let m = san
+                .parse::<shakmaty::san::San>()
+                .unwrap()
+                .to_move(&pos)
+                .unwrap();
+            pos.play_unchecked(m);
+            moves.push(m);
+            positions.push(pos.clone());
+        }
+        let phases = game_phases(&positions, &moves, PhaseRule::Reference);
+        assert_eq!(phases.len(), positions.len());
+        assert!(phases.iter().all(|p| *p == Phase::Opening), "{phases:?}");
+        // Monotonic: never back to an earlier phase.
+        assert!(phases.windows(2).all(|w| w[0] <= w[1]));
+        let legacy = game_phases(&positions, &moves, PhaseRule::Legacy);
+        assert!(legacy.iter().all(|p| *p == Phase::Opening));
+    }
+
+    #[test]
+    fn development_needs_an_untouched_starting_square() {
+        let pos = Chess::default();
+        let nf3 = parse_uci(&pos, "g1f3").unwrap();
+        assert!(is_development_move(&pos, nf3, shakmaty::Bitboard::EMPTY));
+        assert!(!is_development_move(
+            &pos,
+            nf3,
+            shakmaty::Bitboard::from(Square::G1)
+        ));
+        let e4 = parse_uci(&pos, "e2e4").unwrap();
+        assert!(!is_development_move(&pos, e4, shakmaty::Bitboard::EMPTY));
     }
 }

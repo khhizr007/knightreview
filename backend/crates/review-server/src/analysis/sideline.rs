@@ -155,10 +155,10 @@ pub fn judge_sideline(
             *count >= 3 || board::is_board_draw(pos)
         })
         .collect();
-    let mut phase_after = Phase::Opening;
-    for (ply, pos) in positions.iter().enumerate() {
-        phase_after = phase_after.max(board::raw_phase(pos.board(), ply as u32));
-    }
+    let phase_after = board::game_phases(&positions, &played, cfg.phase_rule)
+        .last()
+        .copied()
+        .unwrap_or(Phase::Opening);
 
     // The lines must be the position's: each starts with a legal move.
     let lines = request.before.as_slice();

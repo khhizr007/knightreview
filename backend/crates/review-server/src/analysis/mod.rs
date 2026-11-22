@@ -497,16 +497,9 @@ pub fn to_san_line(start: &Chess, pv: &[String], limit: usize) -> Vec<MoveRef> {
     out
 }
 
-fn phases(game: &ParsedGame) -> Vec<Phase> {
-    let mut current = Phase::Opening;
-    game.positions
-        .iter()
-        .enumerate()
-        .map(|(ply, pos)| {
-            current = current.max(board::raw_phase(pos.board(), ply as u32));
-            current
-        })
-        .collect()
+fn phases(game: &ParsedGame, cfg: &ReviewConfig) -> Vec<Phase> {
+    let moves: Vec<Move> = game.moves.iter().map(|m| m.mv).collect();
+    board::game_phases(&game.positions, &moves, cfg.phase_rule)
 }
 
 struct MoveOutcome {
@@ -550,7 +543,7 @@ fn build_review(
             .map_or(rating, |e| e as i32)
     });
     let highest_elo = white_elo.unwrap_or(0).max(black_elo.unwrap_or(0));
-    let phases = phases(game);
+    let phases = phases(game, cfg);
 
     let mut caps = Caps2State::with_score_scale(cfg.caps_score_scale);
     let mut outcomes: Vec<MoveOutcome> = Vec::with_capacity(game.moves.len());
@@ -891,6 +884,12 @@ fn summarise(
         notes.push(format!(
             "The PGN has no ratings, so the win-probability curve uses the lowest rating, {rating}, and Great moves are judged as for new players."
         ));
+    }
+    if cfg.phase_rule == review_core::PhaseRule::Legacy {
+        notes.push(
+            "Game phases use our own heuristic, not the reference's phase rule (config phase_rule = \"reference\")."
+                .to_owned(),
+        );
     }
 
     let header = |name: &str| game.header(name).map(str::to_owned);
