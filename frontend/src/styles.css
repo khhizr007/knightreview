@@ -4092,7 +4092,7 @@ select option {
 }
 
 .trainer__hero {
-  margin-bottom: var(--gap);
+  margin-bottom: 16px;
 }
 
 .trainer__numbers {
@@ -4102,6 +4102,7 @@ select option {
 }
 
 .trainer__grid {
+  --gap: 16px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: var(--gap);
@@ -4373,6 +4374,7 @@ select option {
 }
 
 .drill {
+  --gap: 16px;
   /* The board's size (BoardView reads it): as large as fits beside the panel. */
   --board-size: min(calc(100dvh - 140px), calc(100vw - 400px - 3 * var(--gap)), 640px);
   display: grid;
